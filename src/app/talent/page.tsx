@@ -3,6 +3,7 @@
 import { useEffect, useState } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
+import InviteModal from "@/components/InviteModal";
 
 interface User {
   id: number;
@@ -15,13 +16,6 @@ interface User {
   avatar: string | null;
   experience: string | null;
   timeCommitment: string | null;
-}
-
-interface Team {
-  id: number;
-  name: string;
-  post: { id: number; title: string };
-  _count: { members: number };
 }
 
 export default function TalentPage() {
@@ -38,11 +32,6 @@ export default function TalentPage() {
 
   // Invite modal state
   const [inviteTarget, setInviteTarget] = useState<User | null>(null);
-  const [myTeams, setMyTeams] = useState<Team[]>([]);
-  const [selectedTeamId, setSelectedTeamId] = useState("");
-  const [inviteMessage, setInviteMessage] = useState("");
-  const [inviteLoading, setInviteLoading] = useState(false);
-  const [inviteError, setInviteError] = useState("");
 
   useEffect(() => {
     fetch("/api/auth/me")
@@ -101,45 +90,6 @@ export default function TalentPage() {
     setGradeFilter("");
     setMajorFilter("");
     setInterestFilter("");
-  }
-
-  // Invite logic
-  async function openInviteModal(user: User) {
-    setInviteTarget(user);
-    setSelectedTeamId("");
-    setInviteMessage("");
-    setInviteError("");
-    setInviteLoading(false);
-    try {
-      const res = await fetch("/api/teams?mine=true");
-      const data = await res.json();
-      setMyTeams(data.teams || []);
-    } catch {
-      setMyTeams([]);
-    }
-  }
-
-  async function handleInvite() {
-    if (!selectedTeamId || !inviteTarget) return;
-    setInviteLoading(true);
-    setInviteError("");
-    const res = await fetch("/api/invitations", {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({
-        targetUserId: inviteTarget.id,
-        teamId: Number(selectedTeamId),
-        message: inviteMessage.trim() || undefined,
-      }),
-    });
-    setInviteLoading(false);
-    if (res.ok) {
-      alert(`已向 ${inviteTarget.nickname} 发出邀请`);
-      setInviteTarget(null);
-    } else {
-      const err = await res.json();
-      setInviteError(err.error || "邀请失败");
-    }
   }
 
   const hasActiveFilters = skillFilter || gradeFilter || majorFilter || interestFilter;
@@ -371,7 +321,7 @@ export default function TalentPage() {
                               router.push("/auth/login?redirect=/talent");
                               return;
                             }
-                            openInviteModal(user);
+                            setInviteTarget(user);
                           }}
                           className="rounded-lg bg-indigo-600 px-3 py-1.5 text-xs font-medium text-white hover:bg-indigo-700"
                         >
@@ -418,73 +368,11 @@ export default function TalentPage() {
       </div>
 
       {/* Invite modal */}
-      {inviteTarget && (
-        <>
-          <div className="fixed inset-0 z-50 bg-black/30" onClick={() => setInviteTarget(null)} />
-          <div className="fixed left-1/2 top-1/2 z-50 w-full max-w-md -translate-x-1/2 -translate-y-1/2 rounded-xl bg-white p-6 shadow-xl">
-            <h3 className="mb-4 text-base font-semibold text-gray-900">
-              邀请 {inviteTarget.nickname} 组队
-            </h3>
-
-            <div className="space-y-3">
-              <div>
-                <label className="mb-1 block text-xs font-medium text-gray-700">选择队伍</label>
-                {myTeams.length === 0 ? (
-                  <p className="text-xs text-gray-500">
-                    还没有可邀请的队伍，请先{" "}
-                    <Link href="/post/new" className="text-indigo-600 hover:underline" onClick={() => setInviteTarget(null)}>
-                      发布招募帖
-                    </Link>
-                    ，系统会自动创建队伍。
-                  </p>
-                ) : (
-                  <select
-                    className="w-full rounded-lg border border-gray-300 px-3 py-2 text-sm outline-none focus:border-indigo-500"
-                    value={selectedTeamId}
-                    onChange={(e) => setSelectedTeamId(e.target.value)}
-                  >
-                    <option value="">请选择队伍</option>
-                    {myTeams.map((t) => (
-                      <option key={t.id} value={t.id}>
-                        {t.name}（{t._count.members} 人）
-                      </option>
-                    ))}
-                  </select>
-                )}
-              </div>
-
-              <div>
-                <label className="mb-1 block text-xs font-medium text-gray-700">附言（选填）</label>
-                <textarea
-                  rows={3}
-                  className="w-full rounded-lg border border-gray-300 px-3 py-2 text-sm outline-none focus:border-indigo-500"
-                  placeholder="简单介绍一下你的队伍..."
-                  value={inviteMessage}
-                  onChange={(e) => setInviteMessage(e.target.value)}
-                />
-              </div>
-
-              {inviteError && <p className="text-sm text-red-600">{inviteError}</p>}
-
-              <div className="flex gap-2 pt-1">
-                <button
-                  onClick={handleInvite}
-                  disabled={inviteLoading || !selectedTeamId}
-                  className="flex-1 rounded-lg bg-indigo-600 px-4 py-2 text-sm font-medium text-white hover:bg-indigo-700 disabled:opacity-50"
-                >
-                  {inviteLoading ? "发送中..." : "发送邀请"}
-                </button>
-                <button
-                  onClick={() => setInviteTarget(null)}
-                  className="rounded-lg border border-gray-300 px-4 py-2 text-sm text-gray-700 hover:bg-gray-50"
-                >
-                  取消
-                </button>
-              </div>
-            </div>
-          </div>
-        </>
-      )}
+      <InviteModal
+        targetUser={inviteTarget}
+        onClose={() => setInviteTarget(null)}
+        onSuccess={() => alert("邀请已发送")}
+      />
     </div>
   );
 }

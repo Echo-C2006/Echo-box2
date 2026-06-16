@@ -2,6 +2,7 @@
 
 import { useEffect, useState } from "react";
 import Link from "next/link";
+import { useRouter } from "next/navigation";
 
 interface Post {
   id: number;
@@ -25,16 +26,28 @@ interface Competition {
 }
 
 export default function SquarePage() {
+  const router = useRouter();
   const [posts, setPosts] = useState<Post[]>([]);
   const [competitions, setCompetitions] = useState<Competition[]>([]);
   const [filterComp, setFilterComp] = useState<number | null>(null);
   const [sort, setSort] = useState("latest");
   const [loading, setLoading] = useState(true);
+  const [showProfileTip, setShowProfileTip] = useState(false);
 
   useEffect(() => {
     fetch("/api/competitions")
       .then((r) => r.json())
       .then((data) => setCompetitions(data.competitions || []));
+  }, []);
+
+  useEffect(() => {
+    fetch("/api/auth/me")
+      .then((r) => (r.ok ? r.json() : null))
+      .then((data) => {
+        if (data?.user && !data.user.profileTipSeen) {
+          setShowProfileTip(true);
+        }
+      });
   }, []);
 
   useEffect(() => {
@@ -162,6 +175,46 @@ export default function SquarePage() {
             );
           })}
         </div>
+      )}
+
+      {/* 首次登录完善档案提示 */}
+      {showProfileTip && (
+        <>
+          <div className="fixed inset-0 z-50 bg-black/40" onClick={() => setShowProfileTip(false)} />
+          <div className="fixed left-1/2 top-1/2 z-50 w-full max-w-sm -translate-x-1/2 -translate-y-1/2 rounded-xl bg-white p-6 shadow-xl">
+            <div className="mb-4 text-center">
+              <div className="mx-auto mb-3 flex h-14 w-14 items-center justify-center rounded-full bg-indigo-100">
+                <svg className="h-7 w-7 text-indigo-600" fill="none" stroke="currentColor" strokeWidth={2} viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" d="M16 7a4 4 0 11-8 0 4 4 0 018 0zM12 14a7 7 0 00-7 7h14a7 7 0 00-7-7z" />
+                </svg>
+              </div>
+              <h2 className="text-base font-semibold text-gray-900">完善个人档案</h2>
+              <p className="mt-1 text-sm text-gray-500">
+                完善技能标签、竞赛经历等信息，可大幅提升被搜索到的概率，更容易找到合适的队友！
+              </p>
+            </div>
+            <div className="flex gap-3">
+              <button
+                onClick={() => {
+                  fetch("/api/auth/profile-tip-seen", { method: "PATCH" });
+                  router.push("/profile");
+                }}
+                className="flex-1 rounded-lg bg-indigo-600 px-4 py-2 text-sm font-medium text-white hover:bg-indigo-700"
+              >
+                去完善
+              </button>
+              <button
+                onClick={() => {
+                  fetch("/api/auth/profile-tip-seen", { method: "PATCH" });
+                  setShowProfileTip(false);
+                }}
+                className="flex-1 rounded-lg border border-gray-300 px-4 py-2 text-sm text-gray-700 hover:bg-gray-50"
+              >
+                稍后再说
+              </button>
+            </div>
+          </div>
+        </>
       )}
     </div>
   );

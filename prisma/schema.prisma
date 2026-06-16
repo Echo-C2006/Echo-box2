@@ -23,6 +23,7 @@ model User {
   interests String?  // JSON string[]
   avatar    String?  // base64 or url
   timeCommitment String?
+  profileTipSeen Boolean @default(false)
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
 

@@ -3,6 +3,7 @@
 import { useEffect, useState } from "react";
 import { useParams, useRouter } from "next/navigation";
 import Link from "next/link";
+import InviteModal from "@/components/InviteModal";
 
 interface ProfileUser {
   id: number;
@@ -26,6 +27,7 @@ export default function UserProfilePage() {
   const [user, setUser] = useState<ProfileUser | null>(null);
   const [currentUserId, setCurrentUserId] = useState<number | null>(null);
   const [loading, setLoading] = useState(true);
+  const [inviteTarget, setInviteTarget] = useState<{ id: number; nickname: string } | null>(null);
 
   useEffect(() => {
     fetch("/api/auth/me")
@@ -53,6 +55,16 @@ export default function UserProfilePage() {
       router.push("/profile");
     }
   }, [user, currentUserId, router]);
+
+  function handleInviteClick() {
+    if (!currentUserId) {
+      router.push(`/auth/login?redirect=/profile/${id}`);
+      return;
+    }
+    if (user) {
+      setInviteTarget({ id: user.id, nickname: user.nickname });
+    }
+  }
 
   if (loading) return <p className="py-12 text-center text-gray-500">加载中...</p>;
   if (!user) return null;
@@ -85,13 +97,11 @@ export default function UserProfilePage() {
 
         {/* Info fields */}
         <div className="space-y-5">
-          {/* 个人简介 */}
           <div>
             <h3 className="mb-1 text-xs font-semibold text-gray-500 uppercase tracking-wide">个人简介</h3>
             <p className="text-sm text-gray-900">{user.bio || "未填写"}</p>
           </div>
 
-          {/* 技能标签 */}
           <div>
             <h3 className="mb-2 text-xs font-semibold text-gray-500 uppercase tracking-wide">技能标签</h3>
             {skills.length > 0 ? (
@@ -107,7 +117,6 @@ export default function UserProfilePage() {
             )}
           </div>
 
-          {/* 竞赛意向 */}
           <div>
             <h3 className="mb-2 text-xs font-semibold text-gray-500 uppercase tracking-wide">竞赛意向</h3>
             {interests.length > 0 ? (
@@ -123,13 +132,11 @@ export default function UserProfilePage() {
             )}
           </div>
 
-          {/* 竞赛经历 */}
           <div>
             <h3 className="mb-1 text-xs font-semibold text-gray-500 uppercase tracking-wide">竞赛经历</h3>
             <p className="text-sm text-gray-900">{user.experience || "未填写"}</p>
           </div>
 
-          {/* 可投入时间 */}
           {user.timeCommitment && (
             <div>
               <h3 className="mb-1 text-xs font-semibold text-gray-500 uppercase tracking-wide">可投入时间</h3>
@@ -138,8 +145,24 @@ export default function UserProfilePage() {
           )}
         </div>
 
-        {/* Back button */}
-        <div className="mt-6">
+        {/* Action buttons */}
+        <div className="mt-6 flex gap-3">
+          <Link
+            href={`/messages?to=${user.id}`}
+            className="flex-1 rounded-lg border border-gray-300 px-4 py-2 text-center text-sm font-medium text-gray-700 hover:bg-gray-50"
+          >
+            发私信
+          </Link>
+          <button
+            onClick={handleInviteClick}
+            className="flex-1 rounded-lg bg-indigo-600 px-4 py-2 text-sm font-medium text-white hover:bg-indigo-700"
+          >
+            邀请组队
+          </button>
+        </div>
+
+        {/* Back link */}
+        <div className="mt-4">
           <Link
             href="/talent"
             className="inline-flex items-center text-sm text-gray-500 hover:text-indigo-600"
@@ -148,6 +171,13 @@ export default function UserProfilePage() {
           </Link>
         </div>
       </div>
+
+      {/* Invite modal */}
+      <InviteModal
+        targetUser={inviteTarget}
+        onClose={() => setInviteTarget(null)}
+        onSuccess={() => alert("邀请已发送")}
+      />
     </div>
   );
 }
