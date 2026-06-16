@@ -119,6 +119,17 @@ export async function POST(req: NextRequest) {
       },
     });
 
+    // 创建通知给队长
+    await prisma.notification.create({
+      data: {
+        type: "apply",
+        userId: post.authorId,
+        title: "新的申请",
+        content: `${user.nickname} 申请加入你的队伍「${post.title}」`,
+        link: `/post/${post.id}`,
+      },
+    });
+
     return NextResponse.json({ application }, { status: 201 });
   } catch (e) {
     console.error(e);

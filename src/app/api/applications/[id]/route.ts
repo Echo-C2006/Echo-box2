@@ -84,12 +84,34 @@ export async function PATCH(req: NextRequest, { params }: { params: Promise<{ id
         });
       }
 
+      // 通知申请人：已通过
+      await prisma.notification.create({
+        data: {
+          type: "system",
+          userId: application.applicantId,
+          title: "申请已通过",
+          content: `你已成功加入队伍「${team.name}」，队长：${user.nickname}`,
+          link: `/team/${team.id}`,
+        },
+      });
+
       return NextResponse.json({ success: true, status: "accepted" });
     } else {
       // reject
       await prisma.application.update({
         where: { id: Number(id) },
         data: { status: "rejected" },
+      });
+
+      // 通知申请人：已拒绝
+      await prisma.notification.create({
+        data: {
+          type: "system",
+          userId: application.applicantId,
+          title: "申请未通过",
+          content: `你对队伍「${team.name}」的申请已被队长拒绝`,
+          link: `/post/${application.postId}`,
+        },
       });
 
       return NextResponse.json({ success: true, status: "rejected" });

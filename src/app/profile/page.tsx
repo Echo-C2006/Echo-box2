@@ -26,6 +26,21 @@ interface MyTeam {
   _count: { members: number };
 }
 
+interface MyApplication {
+  id: number;
+  status: string;
+  reason: string;
+  createdAt: string;
+  post: {
+    id: number;
+    title: string;
+    status: string;
+    competition: { name: string };
+    team: { id: number; name: string } | null;
+    author: { id: number; nickname: string };
+  };
+}
+
 export default function ProfilePage() {
   const router = useRouter();
   const [user, setUser] = useState<User | null>(null);
@@ -36,6 +51,9 @@ export default function ProfilePage() {
   // Teams
   const [teams, setTeams] = useState<MyTeam[]>([]);
   const [teamsLoading, setTeamsLoading] = useState(false);
+  // Applications
+  const [applications, setApplications] = useState<MyApplication[]>([]);
+  const [appsLoading, setAppsLoading] = useState(false);
 
   // Tab
   const [tab, setTab] = useState<"profile" | "joined" | "created">("profile");
@@ -62,6 +80,17 @@ export default function ProfilePage() {
       .then((data) => {
         setTeams(data.teams || []);
         setTeamsLoading(false);
+      });
+  }, [user]);
+
+  useEffect(() => {
+    if (!user) return;
+    setAppsLoading(true);
+    fetch("/api/applications?mine=true")
+      .then((r) => r.json())
+      .then((data) => {
+        setApplications(data.applications || []);
+        setAppsLoading(false);
       });
   }, [user]);
 
@@ -120,6 +149,8 @@ export default function ProfilePage() {
 
   const joinedTeams = teams.filter((t) => t.role === "member");
   const createdTeams = teams.filter((t) => t.role === "captain");
+  const pendingApps = applications.filter((a) => a.status === "pending");
+  const joinedCount = joinedTeams.length + pendingApps.length;
 
   const statusMap: Record<string, string> = {
     recruiting: "招募中",
@@ -150,7 +181,7 @@ export default function ProfilePage() {
               : "text-gray-500 hover:text-gray-700"
           }`}
         >
-          我加入的队伍 ({joinedTeams.length})
+          我加入的队伍 ({joinedCount})
         </button>
         <button
           onClick={() => setTab("created")}
@@ -300,36 +331,76 @@ export default function ProfilePage() {
       {/* Tab: 我加入的队伍 */}
       {tab === "joined" && (
         <div>
-          {teamsLoading ? (
+          {teamsLoading || appsLoading ? (
             <p className="py-8 text-center text-gray-500">加载中...</p>
-          ) : joinedTeams.length === 0 ? (
+          ) : joinedCount === 0 ? (
             <div className="rounded-xl border border-dashed border-gray-300 bg-white py-16 text-center">
-              <p className="text-gray-500">还没有加入任何队伍</p>
+              <p className="text-gray-500">还没有加入或申请任何队伍</p>
               <Link href="/square" className="mt-2 inline-block text-sm text-indigo-600 hover:underline">
                 去广场看看
               </Link>
             </div>
           ) : (
-            <div className="space-y-3">
-              {joinedTeams.map((team) => (
-                <Link
-                  key={team.id}
-                  href={`/team/${team.id}`}
-                  className="block rounded-xl border border-gray-200 bg-white p-4 shadow-sm transition-shadow hover:shadow-md"
-                >
-                  <div className="flex items-center justify-between">
-                    <div>
-                      <h3 className="text-sm font-semibold text-gray-900">{team.name}</h3>
-                      <p className="mt-0.5 text-xs text-gray-500">
-                        {team.post.title} · {team._count.members} 人
-                      </p>
-                    </div>
-                    <span className="rounded-md bg-blue-100 px-2 py-0.5 text-xs font-medium text-blue-700">
-                      {statusMap[team.status] || team.status}
-                    </span>
+            <div className="space-y-4">
+              {/* 已加入的队伍 */}
+              {joinedTeams.length > 0 && (
+                <div>
+                  <h3 className="mb-2 text-xs font-semibold text-gray-500 uppercase tracking-wider">
+                    已加入的队伍
+                  </h3>
+                  <div className="space-y-3">
+                    {joinedTeams.map((team) => (
+                      <Link
+                        key={team.id}
+                        href={`/team/${team.id}`}
+                        className="block rounded-xl border border-gray-200 bg-white p-4 shadow-sm transition-shadow hover:shadow-md"
+                      >
+                        <div className="flex items-center justify-between">
+                          <div>
+                            <h3 className="text-sm font-semibold text-gray-900">{team.name}</h3>
+                            <p className="mt-0.5 text-xs text-gray-500">
+                              {team.post.title} · {team._count.members} 人
+                            </p>
+                          </div>
+                          <span className="rounded-md bg-blue-100 px-2 py-0.5 text-xs font-medium text-blue-700">
+                            {statusMap[team.status] || team.status}
+                          </span>
+                        </div>
+                      </Link>
+                    ))}
                   </div>
-                </Link>
-              ))}
+                </div>
+              )}
+
+              {/* 待处理的申请 */}
+              {pendingApps.length > 0 && (
+                <div>
+                  <h3 className="mb-2 text-xs font-semibold text-gray-500 uppercase tracking-wider">
+                    待回复的申请
+                  </h3>
+                  <div className="space-y-3">
+                    {pendingApps.map((app) => (
+                      <Link
+                        key={app.id}
+                        href={`/post/${app.post.id}`}
+                        className="block rounded-xl border border-gray-200 bg-white p-4 shadow-sm transition-shadow hover:shadow-md"
+                      >
+                        <div className="flex items-center justify-between">
+                          <div>
+                            <h3 className="text-sm font-semibold text-gray-900">{app.post.title}</h3>
+                            <p className="mt-0.5 text-xs text-gray-500">
+                              {app.post.competition.name} · 队长：{app.post.author.nickname}
+                            </p>
+                          </div>
+                          <span className="rounded-md bg-amber-100 px-2 py-0.5 text-xs font-medium text-amber-700">
+                            待回复
+                          </span>
+                        </div>
+                      </Link>
+                    ))}
+                  </div>
+                </div>
+              )}
             </div>
           )}
         </div>
