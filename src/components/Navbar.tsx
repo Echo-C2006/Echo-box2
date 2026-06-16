@@ -19,7 +19,7 @@ export default function Navbar() {
     fetch("/api/auth/me")
       .then((r) => (r.ok ? r.json() : null))
       .then((data) => setUser(data?.user || null));
-  }, []);
+  }, [pathname]);
 
   const navLinks = [
     { href: "/square", label: "广场" },
