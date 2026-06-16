@@ -13,7 +13,7 @@ export async function GET(req: NextRequest) {
     const mine = searchParams.get("mine");
 
     if (mine === "true") {
-      // 返回当前用户所在的队伍（作为队长或队员）
+      // 返回当前用户所在的队伍（作为队长或队员），包含角色
       const memberships = await prisma.teamMember.findMany({
         where: { userId: user.id },
         include: {
@@ -25,7 +25,10 @@ export async function GET(req: NextRequest) {
           },
         },
       });
-      const teams = memberships.map((m) => m.team);
+      const teams = memberships.map((m) => ({
+        ...m.team,
+        role: m.role, // "captain" | "member"
+      }));
       return NextResponse.json({ teams });
     }
 

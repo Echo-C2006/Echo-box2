@@ -9,7 +9,11 @@ export async function GET(_req: Request, { params }: { params: Promise<{ id: str
       where: { id: Number(id) },
       include: {
         post: {
-          include: {
+          select: {
+            id: true,
+            title: true,
+            targetSize: true,
+            currentSize: true,
             competition: { select: { id: true, name: true } },
             author: { select: { id: true, nickname: true } },
           },

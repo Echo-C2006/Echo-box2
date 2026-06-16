@@ -91,8 +91,14 @@ export default function PostDetailPage() {
 
   const skills: string[] = post.skills ? JSON.parse(post.skills) : [];
   const isAuthor = currentUserId === post.author.id;
-  const hasApplied = post.applications.some((a) => a.applicantId === currentUserId && a.status === "pending");
   const isFull = post.status === "full";
+
+  // 检查当前用户是否已是队员
+  const isMember = post.team?.members.some((m) => m.user.id === currentUserId) ?? false;
+
+  // 检查当前用户的申请状态
+  const myApplication = post.applications.find((a) => a.applicantId === currentUserId);
+  const appStatus = myApplication?.status || null; // "pending" | "accepted" | "rejected" | null
 
   const daysLeft = Math.ceil((new Date(post.expiresAt).getTime() - Date.now()) / 86400000);
 
@@ -189,9 +195,21 @@ export default function PostDetailPage() {
 
         {!isAuthor && (
           <div className="flex gap-3">
-            {hasApplied ? (
+            {isMember ? (
+              <button disabled className="rounded-lg bg-gray-100 px-5 py-2 text-sm font-medium text-gray-500">
+                已是队员
+              </button>
+            ) : appStatus === "pending" ? (
               <button disabled className="rounded-lg bg-gray-100 px-5 py-2 text-sm font-medium text-gray-500">
                 已申请，等待回复
+              </button>
+            ) : appStatus === "accepted" ? (
+              <button disabled className="rounded-lg bg-gray-100 px-5 py-2 text-sm font-medium text-gray-500">
+                已同意
+              </button>
+            ) : appStatus === "rejected" ? (
+              <button disabled className="rounded-lg bg-gray-100 px-5 py-2 text-sm font-medium text-gray-500">
+                已拒绝
               </button>
             ) : isFull ? (
               <button disabled className="rounded-lg bg-gray-100 px-5 py-2 text-sm font-medium text-gray-500">

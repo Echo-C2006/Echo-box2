@@ -14,6 +14,8 @@ interface TeamDetail {
   post: {
     id: number;
     title: string;
+    targetSize: number;
+    currentSize: number;
     competition: { id: number; name: string };
     author: { id: number; nickname: string };
   };
@@ -22,6 +24,22 @@ interface TeamDetail {
     skills: string | null;
     user: { id: number; nickname: string; grade: string | null; major: string | null };
   }[];
+}
+
+interface ApplicationItem {
+  id: number;
+  status: string;
+  reason: string;
+  createdAt: string;
+  applicant: {
+    id: number;
+    nickname: string;
+    avatar: string | null;
+    grade: string | null;
+    major: string | null;
+    skills: string | null;
+    bio: string | null;
+  };
 }
 
 export default function TeamPage() {
@@ -35,6 +53,11 @@ export default function TeamPage() {
   const [isCaptain, setIsCaptain] = useState(false);
   const [editMode, setEditMode] = useState(false);
   const [form, setForm] = useState({ name: "", status: "", announcement: "", progress: "" });
+
+  // 申请审批
+  const [applications, setApplications] = useState<ApplicationItem[]>([]);
+  const [appsLoading, setAppsLoading] = useState(false);
+  const [processingId, setProcessingId] = useState<number | null>(null);
 
   useEffect(() => {
     fetch("/api/auth/me")
@@ -62,9 +85,25 @@ export default function TeamPage() {
 
   useEffect(() => {
     if (team && currentUserId) {
-      setIsCaptain(team.members.some((m) => m.user.id === currentUserId && m.role === "captain"));
+      const captain = team.members.some((m) => m.user.id === currentUserId && m.role === "captain");
+      setIsCaptain(captain);
+      if (captain) {
+        fetchApplications();
+      }
     }
   }, [team, currentUserId]);
+
+  async function fetchApplications() {
+    setAppsLoading(true);
+    try {
+      const res = await fetch(`/api/applications?teamId=${id}`);
+      const data = await res.json();
+      setApplications(data.applications || []);
+    } catch {
+      setApplications([]);
+    }
+    setAppsLoading(false);
+  }
 
   async function handleSave() {
     const res = await fetch(`/api/teams/${id}`, {
@@ -81,10 +120,48 @@ export default function TeamPage() {
     }
   }
 
+  async function handleApplication(applicationId: number, action: "accept" | "reject") {
+    setProcessingId(applicationId);
+    const res = await fetch(`/api/applications/${applicationId}`, {
+      method: "PATCH",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ action }),
+    });
+    setProcessingId(null);
+    if (res.ok) {
+      // 刷新申请列表和队伍信息
+      await Promise.all([
+        fetchApplications(),
+        fetch(`/api/teams/${id}`)
+          .then((r) => r.json())
+          .then((data) => {
+            if (data?.team) {
+              setTeam(data.team);
+              setForm({
+                name: data.team.name,
+                status: data.team.status,
+                announcement: data.team.announcement || "",
+                progress: data.team.progress || "",
+              });
+            }
+          }),
+      ]);
+    } else {
+      const err = await res.json();
+      alert(err.error || "操作失败");
+    }
+  }
+
+  function parseSkills(skills: string | null): string[] {
+    if (!skills) return [];
+    try { return JSON.parse(skills); } catch { return []; }
+  }
+
   if (loading) return <p className="py-12 text-center text-gray-500">加载中...</p>;
   if (!team) return <p className="py-12 text-center text-red-500">队伍不存在</p>;
 
   const links = team.externalLinks ? JSON.parse(team.externalLinks) : {};
+  const pendingApps = applications.filter((a) => a.status === "pending");
 
   const statusMap: Record<string, string> = {
     recruiting: "招募中",
@@ -102,6 +179,7 @@ export default function TeamPage() {
       </div>
 
       <div className="rounded-xl border border-gray-200 bg-white p-6 shadow-sm">
+        {/* Header */}
         <div className="mb-4 flex items-start justify-between">
           <div>
             {editMode ? (
@@ -122,6 +200,7 @@ export default function TeamPage() {
           </span>
         </div>
 
+        {/* Captain actions */}
         {isCaptain && !editMode && (
           <button
             onClick={() => setEditMode(true)}
@@ -181,6 +260,76 @@ export default function TeamPage() {
           </div>
         )}
 
+        {/* 待处理的申请 - 仅队长可见 */}
+        {isCaptain && pendingApps.length > 0 && (
+          <div className="mb-6 rounded-lg border border-amber-200 bg-amber-50 p-4">
+            <h3 className="mb-3 text-sm font-semibold text-amber-800">
+              待处理的申请 ({pendingApps.length})
+            </h3>
+            <div className="space-y-3">
+              {pendingApps.map((app) => {
+                const skills = parseSkills(app.applicant.skills);
+                return (
+                  <div key={app.id} className="rounded-lg border border-amber-200 bg-white p-3">
+                    <div className="mb-2 flex items-center justify-between">
+                      <Link
+                        href={`/profile/${app.applicant.id}`}
+                        className="flex items-center gap-2 hover:text-indigo-600"
+                      >
+                        <div className="flex h-8 w-8 items-center justify-center rounded-full bg-amber-100 text-xs font-bold text-amber-700">
+                          {app.applicant.nickname[0]}
+                        </div>
+                        <div>
+                          <p className="text-sm font-medium text-gray-900">{app.applicant.nickname}</p>
+                          <p className="text-xs text-gray-500">
+                            {app.applicant.grade || ""}{app.applicant.grade && app.applicant.major ? " · " : ""}{app.applicant.major || ""}
+                          </p>
+                        </div>
+                      </Link>
+                      <span className="rounded bg-amber-100 px-2 py-0.5 text-[10px] font-medium text-amber-700">
+                        待处理
+                      </span>
+                    </div>
+
+                    {skills.length > 0 && (
+                      <div className="mb-2 flex flex-wrap gap-1">
+                        {skills.map((s) => (
+                          <span key={s} className="rounded bg-gray-100 px-1.5 py-0.5 text-[10px] text-gray-600">
+                            {s}
+                          </span>
+                        ))}
+                      </div>
+                    )}
+
+                    <p className="mb-3 text-xs text-gray-600">
+                      <span className="text-gray-400">申请理由：</span>
+                      {app.reason}
+                    </p>
+
+                    <div className="flex gap-2">
+                      <button
+                        onClick={() => handleApplication(app.id, "accept")}
+                        disabled={processingId === app.id}
+                        className="rounded-lg bg-green-600 px-3 py-1.5 text-xs font-medium text-white hover:bg-green-700 disabled:opacity-50"
+                      >
+                        {processingId === app.id ? "处理中..." : "同意"}
+                      </button>
+                      <button
+                        onClick={() => handleApplication(app.id, "reject")}
+                        disabled={processingId === app.id}
+                        className="rounded-lg border border-red-300 px-3 py-1.5 text-xs font-medium text-red-700 hover:bg-red-50 disabled:opacity-50"
+                      >
+                        拒绝
+                      </button>
+                    </div>
+                  </div>
+                );
+              })}
+            </div>
+          </div>
+        )}
+
+        {/* 公告 */}
         <div className="mb-6">
           <h3 className="mb-2 text-sm font-semibold text-gray-900">队伍公告</h3>
           {editMode ? (
@@ -198,8 +347,11 @@ export default function TeamPage() {
           )}
         </div>
 
+        {/* 成员列表 */}
         <div className="mb-6">
-          <h3 className="mb-2 text-sm font-semibold text-gray-900">成员列表</h3>
+          <h3 className="mb-2 text-sm font-semibold text-gray-900">
+            成员列表（{team.members.length}/{team.post.targetSize || "?"}）
+          </h3>
           <div className="space-y-2">
             {team.members.map((m) => (
               <div key={m.user.id} className="flex items-center justify-between rounded-lg border border-gray-100 px-3 py-2">
@@ -225,6 +377,35 @@ export default function TeamPage() {
           </div>
         </div>
 
+        {/* 已处理记录 */}
+        {isCaptain && applications.filter((a) => a.status !== "pending").length > 0 && (
+          <div className="mb-6">
+            <h3 className="mb-2 text-sm font-semibold text-gray-900">历史记录</h3>
+            <div className="space-y-1">
+              {applications
+                .filter((a) => a.status !== "pending")
+                .map((app) => (
+                  <div key={app.id} className="flex items-center justify-between rounded-lg bg-gray-50 px-3 py-2">
+                    <div className="flex items-center gap-2">
+                      <span className="text-sm text-gray-700">{app.applicant.nickname}</span>
+                      <span className="text-xs text-gray-400">{app.reason}</span>
+                    </div>
+                    <span
+                      className={`rounded px-1.5 py-0.5 text-[10px] font-medium ${
+                        app.status === "accepted"
+                          ? "bg-green-100 text-green-700"
+                          : "bg-red-100 text-red-700"
+                      }`}
+                    >
+                      {app.status === "accepted" ? "已同意" : "已拒绝"}
+                    </span>
+                  </div>
+                ))}
+            </div>
+          </div>
+        )}
+
+        {/* 外部协作链接 */}
         {Object.keys(links).length > 0 && (
           <div>
             <h3 className="mb-2 text-sm font-semibold text-gray-900">外部协作</h3>
