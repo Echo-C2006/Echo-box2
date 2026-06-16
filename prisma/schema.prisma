@@ -1,0 +1,149 @@
+// This is your Prisma schema file,
+// learn more about it in the docs: https://pris.ly/d/prisma-schema
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "sqlite"
+  url      = env("DATABASE_URL")
+}
+
+model User {
+  id        Int      @id @default(autoincrement())
+  email     String   @unique
+  password  String
+  nickname  String
+  grade     String?
+  major     String?
+  bio       String?
+  skills    String?  // JSON string[]
+  experience String?
+  interests String?  // JSON string[]
+  avatar    String?  // base64 or url
+  timeCommitment String?
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  posts          Post[]
+  teamMembers    TeamMember[]
+  sentApplications    Application[] @relation("SentApplications")
+  receivedApplications Application[] @relation("ReceivedApplications")
+  sentMessages    Message[] @relation("SentMessages")
+  receivedMessages Message[] @relation("ReceivedMessages")
+  notifications  Notification[]
+}
+
+model Competition {
+  id          Int    @id @default(autoincrement())
+  name        String @unique
+  category    String
+  description String?
+  deadline    DateTime?
+  createdAt   DateTime @default(now())
+
+  posts       Post[]
+}
+
+model Post {
+  id          Int    @id @default(autoincrement())
+  title       String
+  description String
+  skills      String? // JSON string[]
+  currentSize Int    @default(1)
+  targetSize  Int    @default(3)
+  status      String @default("recruiting") // recruiting, full, closed
+  expiresAt   DateTime
+
+  authorId    Int
+  author      User   @relation(fields: [authorId], references: [id])
+
+  competitionId Int
+  competition   Competition @relation(fields: [competitionId], references: [id])
+
+  team        Team?
+  applications Application[]
+
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+}
+
+model Team {
+  id          Int    @id @default(autoincrement())
+  name        String
+  status      String @default("recruiting") // recruiting, preparing, competing, finished
+  announcement String?
+  progress    String?
+  externalLinks String? // JSON object
+
+  postId      Int    @unique
+  post        Post   @relation(fields: [postId], references: [id])
+
+  members     TeamMember[]
+
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+}
+
+model TeamMember {
+  id     Int    @id @default(autoincrement())
+  role   String @default("member") // captain, member
+  skills String?
+
+  userId Int
+  user   User @relation(fields: [userId], references: [id])
+
+  teamId Int
+  team   Team @relation(fields: [teamId], references: [id])
+
+  joinedAt DateTime @default(now())
+
+  @@unique([userId, teamId])
+}
+
+model Application {
+  id      Int    @id @default(autoincrement())
+  reason  String
+  status  String @default("pending") // pending, accepted, rejected
+
+  applicantId Int
+  applicant   User @relation("SentApplications", fields: [applicantId], references: [id])
+
+  captainId   Int
+  captain     User @relation("ReceivedApplications", fields: [captainId], references: [id])
+
+  postId      Int
+  post        Post @relation(fields: [postId], references: [id])
+
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+}
+
+model Message {
+  id      Int    @id @default(autoincrement())
+  content String
+
+  senderId   Int
+  sender     User @relation("SentMessages", fields: [senderId], references: [id])
+
+  receiverId Int
+  receiver   User @relation("ReceivedMessages", fields: [receiverId], references: [id])
+
+  createdAt  DateTime @default(now())
+  readAt     DateTime?
+}
+
+model Notification {
+  id      Int    @id @default(autoincrement())
+  type    String // apply, message, system
+  title   String
+  content String
+  read    Boolean @default(false)
+  link    String?
+
+  userId  Int
+  user    User @relation(fields: [userId], references: [id])
+
+  createdAt DateTime @default(now())
+}
