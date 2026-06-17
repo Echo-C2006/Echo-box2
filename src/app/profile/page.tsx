@@ -3,6 +3,7 @@
 import { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
 import Link from "next/link";
+import { SparkIcon, TrophyIcon, UserIcon, UsersIcon } from "@/components/Icons";
 
 interface User {
   id: number;
@@ -31,15 +32,20 @@ interface MyApplication {
   status: string;
   reason: string;
   createdAt: string;
-  post: {
-    id: number;
-    title: string;
-    status: string;
-    competition: { name: string };
-    team: { id: number; name: string } | null;
-    author: { id: number; nickname: string };
-  };
+  post: { id: number; title: string; status: string; competition: { name: string }; team: { id: number; name: string } | null; author: { id: number; nickname: string } };
 }
+
+function parseList(value: string | null): string[] {
+  if (!value) return [];
+  try { return JSON.parse(value); } catch { return []; }
+}
+
+const statusMap: Record<string, string> = {
+  recruiting: "招募中",
+  preparing: "备赛中",
+  competing: "比赛中",
+  finished: "已完赛",
+};
 
 export default function ProfilePage() {
   const router = useRouter();
@@ -47,15 +53,8 @@ export default function ProfilePage() {
   const [loading, setLoading] = useState(true);
   const [editMode, setEditMode] = useState(false);
   const [form, setForm] = useState<Partial<User>>({});
-
-  // Teams
   const [teams, setTeams] = useState<MyTeam[]>([]);
-  const [teamsLoading, setTeamsLoading] = useState(false);
-  // Applications
   const [applications, setApplications] = useState<MyApplication[]>([]);
-  const [appsLoading, setAppsLoading] = useState(false);
-
-  // Tab
   const [tab, setTab] = useState<"profile" | "joined" | "created">("profile");
 
   useEffect(() => {
@@ -65,33 +64,15 @@ export default function ProfilePage() {
         if (data?.user) {
           setUser(data.user);
           setForm(data.user);
-        } else {
-          router.push("/auth/login");
-        }
+        } else router.push("/auth/login");
         setLoading(false);
       });
   }, [router]);
 
   useEffect(() => {
     if (!user) return;
-    setTeamsLoading(true);
-    fetch("/api/teams?mine=true")
-      .then((r) => r.json())
-      .then((data) => {
-        setTeams(data.teams || []);
-        setTeamsLoading(false);
-      });
-  }, [user]);
-
-  useEffect(() => {
-    if (!user) return;
-    setAppsLoading(true);
-    fetch("/api/applications?mine=true")
-      .then((r) => r.json())
-      .then((data) => {
-        setApplications(data.applications || []);
-        setAppsLoading(false);
-      });
+    fetch("/api/teams?mine=true").then((r) => r.json()).then((data) => setTeams(data.teams || []));
+    fetch("/api/applications?mine=true").then((r) => r.json()).then((data) => setApplications(data.applications || []));
   }, [user]);
 
   function handleChange(e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement>) {
@@ -99,32 +80,19 @@ export default function ProfilePage() {
   }
 
   async function handleSave() {
-    const skills = form.skills
-      ? (form.skills as string)
-          .split(/[,，、]/)
-          .map((s) => s.trim())
-          .filter(Boolean)
-      : [];
-    const interests = form.interests
-      ? (form.interests as string)
-          .split(/[,，、]/)
-          .map((s) => s.trim())
-          .filter(Boolean)
-      : [];
-
+    const skills = typeof form.skills === "string" ? form.skills.split(/[,，、\s]+/).map((s) => s.trim()).filter(Boolean) : [];
+    const interests = typeof form.interests === "string" ? form.interests.split(/[,，、\s]+/).map((s) => s.trim()).filter(Boolean) : [];
     const res = await fetch("/api/users/me", {
       method: "PATCH",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({ ...form, skills, interests }),
     });
-
     if (res.ok) {
       const data = await res.json();
       setUser(data.user);
+      setForm(data.user);
       setEditMode(false);
-    } else {
-      alert("保存失败");
-    }
+    } else alert("保存失败");
   }
 
   async function handleLogout() {
@@ -133,316 +101,114 @@ export default function ProfilePage() {
     router.refresh();
   }
 
-  if (loading) return <p className="py-12 text-center text-gray-500">加载中...</p>;
+  if (loading) return <p className="py-12 text-center text-sm text-slate-500">正在加载...</p>;
   if (!user) return null;
 
-  const skillsArr: string[] = user.skills ? JSON.parse(user.skills) : [];
-  const interestsArr: string[] = user.interests ? JSON.parse(user.interests) : [];
-
-  const fields = [
-    { label: "昵称", name: "nickname", required: true },
-    { label: "年级", name: "grade" },
-    { label: "专业", name: "major" },
-    { label: "竞赛经历", name: "experience" },
-    { label: "可投入时间", name: "timeCommitment", placeholder: "如：每周10小时" },
-  ];
-
+  const skillsArr = parseList(user.skills);
+  const interestsArr = parseList(user.interests);
   const joinedTeams = teams.filter((t) => t.role === "member");
   const createdTeams = teams.filter((t) => t.role === "captain");
   const pendingApps = applications.filter((a) => a.status === "pending");
   const joinedCount = joinedTeams.length + pendingApps.length;
 
-  const statusMap: Record<string, string> = {
-    recruiting: "招募中",
-    preparing: "备赛中",
-    competing: "比赛中",
-    finished: "已完赛",
-  };
-
   return (
-    <div className="mx-auto max-w-2xl px-4 py-6">
-      {/* Tabs */}
-      <div className="mb-6 flex gap-4 border-b border-gray-200">
-        <button
-          onClick={() => setTab("profile")}
-          className={`pb-2 text-sm font-medium ${
-            tab === "profile"
-              ? "border-b-2 border-indigo-600 text-indigo-600"
-              : "text-gray-500 hover:text-gray-700"
-          }`}
-        >
-          个人信息
-        </button>
-        <button
-          onClick={() => setTab("joined")}
-          className={`pb-2 text-sm font-medium ${
-            tab === "joined"
-              ? "border-b-2 border-indigo-600 text-indigo-600"
-              : "text-gray-500 hover:text-gray-700"
-          }`}
-        >
-          我加入的队伍 ({joinedCount})
-        </button>
-        <button
-          onClick={() => setTab("created")}
-          className={`pb-2 text-sm font-medium ${
-            tab === "created"
-              ? "border-b-2 border-indigo-600 text-indigo-600"
-              : "text-gray-500 hover:text-gray-700"
-          }`}
-        >
-          我创建的队伍 ({createdTeams.length})
-        </button>
+    <div className="mx-auto max-w-5xl px-4 py-8">
+      <div className="mb-6 overflow-hidden rounded-2xl border border-slate-200 bg-white shadow-sm">
+        <div className="bg-slate-950 p-6 text-white sm:p-8">
+          <div className="flex flex-col gap-4 sm:flex-row sm:items-end sm:justify-between">
+            <div className="flex items-center gap-4">
+              <div className="flex h-16 w-16 items-center justify-center rounded-2xl bg-teal-500 text-2xl font-black">{user.nickname[0]}</div>
+              <div>
+                <h1 className="text-2xl font-black">{user.nickname}</h1>
+                <p className="mt-1 text-sm text-slate-300">{user.grade || "年级未填"}{user.major ? ` · ${user.major}` : ""}</p>
+              </div>
+            </div>
+            <button onClick={handleLogout} className="rounded-xl bg-white/10 px-4 py-2 text-sm font-bold text-white hover:bg-white/20">退出登录</button>
+          </div>
+        </div>
+        <div className="grid grid-cols-3 divide-x divide-slate-100">
+          <button onClick={() => setTab("profile")} className={`p-4 text-sm font-black ${tab === "profile" ? "bg-teal-50 text-teal-700" : "text-slate-600 hover:bg-slate-50"}`}>个人资料</button>
+          <button onClick={() => setTab("joined")} className={`p-4 text-sm font-black ${tab === "joined" ? "bg-teal-50 text-teal-700" : "text-slate-600 hover:bg-slate-50"}`}>参与队伍 ({joinedCount})</button>
+          <button onClick={() => setTab("created")} className={`p-4 text-sm font-black ${tab === "created" ? "bg-teal-50 text-teal-700" : "text-slate-600 hover:bg-slate-50"}`}>管理队伍 ({createdTeams.length})</button>
+        </div>
       </div>
 
-      {/* Tab: 个人信息 */}
       {tab === "profile" && (
-        <div className="rounded-xl border border-gray-200 bg-white p-6 shadow-sm">
+        <div className="rounded-2xl border border-slate-200 bg-white p-6 shadow-sm">
           <div className="mb-6 flex items-center justify-between">
-            <h1 className="text-lg font-bold text-gray-900">我的资料</h1>
-            <div className="flex gap-2">
-              {!editMode ? (
-                <>
-                  <button
-                    onClick={() => setEditMode(true)}
-                    className="rounded-lg border border-gray-300 px-3 py-1.5 text-xs text-gray-700 hover:bg-gray-50"
-                  >
-                    编辑
-                  </button>
-                  <button
-                    onClick={handleLogout}
-                    className="rounded-lg bg-red-50 px-3 py-1.5 text-xs text-red-600 hover:bg-red-100"
-                  >
-                    退出登录
-                  </button>
-                </>
-              ) : (
-                <>
-                  <button
-                    onClick={handleSave}
-                    className="rounded-lg bg-indigo-600 px-3 py-1.5 text-xs font-medium text-white hover:bg-indigo-700"
-                  >
-                    保存
-                  </button>
-                  <button
-                    onClick={() => {
-                      setForm(user);
-                      setEditMode(false);
-                    }}
-                    className="rounded-lg border border-gray-300 px-3 py-1.5 text-xs text-gray-700 hover:bg-gray-50"
-                  >
-                    取消
-                  </button>
-                </>
-              )}
-            </div>
+            <h2 className="flex items-center gap-2 text-lg font-black text-slate-950"><UserIcon className="h-5 w-5 text-teal-700" />我的资料</h2>
+            {!editMode ? (
+              <button onClick={() => setEditMode(true)} className="rounded-xl border border-slate-200 px-4 py-2 text-sm font-bold text-slate-700 hover:bg-slate-50">编辑</button>
+            ) : (
+              <div className="flex gap-2">
+                <button onClick={handleSave} className="rounded-xl bg-slate-950 px-4 py-2 text-sm font-bold text-white hover:bg-teal-700">保存</button>
+                <button onClick={() => { setForm(user); setEditMode(false); }} className="rounded-xl border border-slate-200 px-4 py-2 text-sm font-bold text-slate-700">取消</button>
+              </div>
+            )}
           </div>
-
-          <div className="space-y-4">
-            {fields.map((f) => (
-              <div key={f.name}>
-                <label className="mb-1 block text-sm font-medium text-gray-700">{f.label}</label>
-                {editMode ? (
-                  <input
-                    type="text"
-                    name={f.name}
-                    required={f.required}
-                    className="w-full rounded-lg border border-gray-300 px-3 py-2 text-sm outline-none focus:border-indigo-500 focus:ring-1 focus:ring-indigo-500"
-                    value={(form as any)[f.name] || ""}
-                    onChange={handleChange}
-                    placeholder={f.placeholder || ""}
-                  />
-                ) : (
-                  <p className="text-sm text-gray-900">{(user as any)[f.name] || "未填写"}</p>
-                )}
+          <div className="grid gap-5 md:grid-cols-2">
+            {[
+              ["nickname", "昵称"],
+              ["grade", "年级"],
+              ["major", "专业"],
+              ["experience", "竞赛经历"],
+              ["timeCommitment", "可投入时间"],
+            ].map(([name, label]) => (
+              <div key={name}>
+                <label className="mb-1.5 block text-sm font-bold text-slate-700">{label}</label>
+                {editMode ? <input name={name} className="w-full rounded-xl border border-slate-200 px-3 py-2.5 text-sm outline-none focus:border-teal-500 focus:ring-2 focus:ring-teal-100" value={(form as any)[name] || ""} onChange={handleChange} /> : <p className="rounded-xl bg-slate-50 px-3 py-2.5 text-sm text-slate-700">{(user as any)[name] || "未填写"}</p>}
               </div>
             ))}
-
-            <div>
-              <label className="mb-1 block text-sm font-medium text-gray-700">个人简介</label>
-              {editMode ? (
-                <textarea
-                  name="bio"
-                  rows={3}
-                  className="w-full rounded-lg border border-gray-300 px-3 py-2 text-sm outline-none focus:border-indigo-500 focus:ring-1 focus:ring-indigo-500"
-                  value={form.bio || ""}
-                  onChange={handleChange}
-                />
-              ) : (
-                <p className="text-sm text-gray-900">{user.bio || "未填写"}</p>
-              )}
+            <div className="md:col-span-2">
+              <label className="mb-1.5 block text-sm font-bold text-slate-700">个人简介</label>
+              {editMode ? <textarea name="bio" rows={4} className="w-full resize-none rounded-xl border border-slate-200 px-3 py-2.5 text-sm outline-none focus:border-teal-500 focus:ring-2 focus:ring-teal-100" value={form.bio || ""} onChange={handleChange} /> : <p className="rounded-xl bg-slate-50 px-3 py-2.5 text-sm leading-6 text-slate-700">{user.bio || "未填写"}</p>}
             </div>
-
             <div>
-              <label className="mb-1 block text-sm font-medium text-gray-700">技能标签</label>
-              {editMode ? (
-                <input
-                  type="text"
-                  name="skills"
-                  className="w-full rounded-lg border border-gray-300 px-3 py-2 text-sm outline-none focus:border-indigo-500 focus:ring-1 focus:ring-indigo-500"
-                  value={typeof form.skills === "string" ? form.skills : skillsArr.join(", ")}
-                  onChange={handleChange}
-                  placeholder="用逗号分隔，如：Python, 数据分析"
-                />
-              ) : (
-                <div className="flex flex-wrap gap-2">
-                  {skillsArr.length > 0 ? (
-                    skillsArr.map((s) => (
-                      <span key={s} className="rounded-md bg-indigo-50 px-2 py-1 text-xs text-indigo-700">
-                        {s}
-                      </span>
-                    ))
-                  ) : (
-                    <span className="text-sm text-gray-400">未填写</span>
-                  )}
-                </div>
-              )}
+              <label className="mb-1.5 block text-sm font-bold text-slate-700">技能标签</label>
+              {editMode ? <input name="skills" className="w-full rounded-xl border border-slate-200 px-3 py-2.5 text-sm outline-none focus:border-teal-500 focus:ring-2 focus:ring-teal-100" value={typeof form.skills === "string" ? form.skills : skillsArr.join(", ")} onChange={handleChange} placeholder="Python, 数据分析" /> : <TagList items={skillsArr} empty="未填写" color="teal" />}
             </div>
-
             <div>
-              <label className="mb-1 block text-sm font-medium text-gray-700">竞赛意向</label>
-              {editMode ? (
-                <input
-                  type="text"
-                  name="interests"
-                  className="w-full rounded-lg border border-gray-300 px-3 py-2 text-sm outline-none focus:border-indigo-500 focus:ring-1 focus:ring-indigo-500"
-                  value={typeof form.interests === "string" ? form.interests : interestsArr.join(", ")}
-                  onChange={handleChange}
-                  placeholder="用逗号分隔"
-                />
-              ) : (
-                <div className="flex flex-wrap gap-2">
-                  {interestsArr.length > 0 ? (
-                    interestsArr.map((s) => (
-                      <span key={s} className="rounded-md bg-green-50 px-2 py-1 text-xs text-green-700">
-                        {s}
-                      </span>
-                    ))
-                  ) : (
-                    <span className="text-sm text-gray-400">未填写</span>
-                  )}
-                </div>
-              )}
+              <label className="mb-1.5 block text-sm font-bold text-slate-700">竞赛意向</label>
+              {editMode ? <input name="interests" className="w-full rounded-xl border border-slate-200 px-3 py-2.5 text-sm outline-none focus:border-teal-500 focus:ring-2 focus:ring-teal-100" value={typeof form.interests === "string" ? form.interests : interestsArr.join(", ")} onChange={handleChange} placeholder="数学建模, ACM" /> : <TagList items={interestsArr} empty="未填写" color="amber" />}
             </div>
           </div>
         </div>
       )}
 
-      {/* Tab: 我加入的队伍 */}
-      {tab === "joined" && (
-        <div>
-          {teamsLoading || appsLoading ? (
-            <p className="py-8 text-center text-gray-500">加载中...</p>
-          ) : joinedCount === 0 ? (
-            <div className="rounded-xl border border-dashed border-gray-300 bg-white py-16 text-center">
-              <p className="text-gray-500">还没有加入或申请任何队伍</p>
-              <Link href="/square" className="mt-2 inline-block text-sm text-indigo-600 hover:underline">
-                去广场看看
-              </Link>
-            </div>
-          ) : (
-            <div className="space-y-4">
-              {/* 已加入的队伍 */}
-              {joinedTeams.length > 0 && (
-                <div>
-                  <h3 className="mb-2 text-xs font-semibold text-gray-500 uppercase tracking-wider">
-                    已加入的队伍
-                  </h3>
-                  <div className="space-y-3">
-                    {joinedTeams.map((team) => (
-                      <Link
-                        key={team.id}
-                        href={`/team/${team.id}`}
-                        className="block rounded-xl border border-gray-200 bg-white p-4 shadow-sm transition-shadow hover:shadow-md"
-                      >
-                        <div className="flex items-center justify-between">
-                          <div>
-                            <h3 className="text-sm font-semibold text-gray-900">{team.name}</h3>
-                            <p className="mt-0.5 text-xs text-gray-500">
-                              {team.post.title} · {team._count.members} 人
-                            </p>
-                          </div>
-                          <span className="rounded-md bg-blue-100 px-2 py-0.5 text-xs font-medium text-blue-700">
-                            {statusMap[team.status] || team.status}
-                          </span>
-                        </div>
-                      </Link>
-                    ))}
-                  </div>
-                </div>
-              )}
+      {tab === "joined" && <TeamList empty="还没有加入或申请任何队伍" items={[...joinedTeams, ...pendingApps.map((a) => ({ id: a.id, name: a.post.title, status: "pending", role: "applicant", post: { id: a.post.id, title: a.post.competition.name }, _count: { members: 0 } }))]} pending />}
+      {tab === "created" && <TeamList empty="还没有创建过队伍" items={createdTeams} />}
+    </div>
+  );
+}
 
-              {/* 待处理的申请 */}
-              {pendingApps.length > 0 && (
-                <div>
-                  <h3 className="mb-2 text-xs font-semibold text-gray-500 uppercase tracking-wider">
-                    待回复的申请
-                  </h3>
-                  <div className="space-y-3">
-                    {pendingApps.map((app) => (
-                      <Link
-                        key={app.id}
-                        href={`/post/${app.post.id}`}
-                        className="block rounded-xl border border-gray-200 bg-white p-4 shadow-sm transition-shadow hover:shadow-md"
-                      >
-                        <div className="flex items-center justify-between">
-                          <div>
-                            <h3 className="text-sm font-semibold text-gray-900">{app.post.title}</h3>
-                            <p className="mt-0.5 text-xs text-gray-500">
-                              {app.post.competition.name} · 队长：{app.post.author.nickname}
-                            </p>
-                          </div>
-                          <span className="rounded-md bg-amber-100 px-2 py-0.5 text-xs font-medium text-amber-700">
-                            待回复
-                          </span>
-                        </div>
-                      </Link>
-                    ))}
-                  </div>
-                </div>
-              )}
-            </div>
-          )}
-        </div>
-      )}
+function TagList({ items, empty, color }: { items: string[]; empty: string; color: "teal" | "amber" }) {
+  if (items.length === 0) return <span className="text-sm text-slate-400">{empty}</span>;
+  const cls = color === "teal" ? "bg-teal-50 text-teal-700" : "bg-amber-100 text-amber-800";
+  return <div className="flex flex-wrap gap-2">{items.map((s) => <span key={s} className={`rounded-md px-2.5 py-1 text-xs font-bold ${cls}`}>{s}</span>)}</div>;
+}
 
-      {/* Tab: 我创建的队伍 */}
-      {tab === "created" && (
-        <div>
-          {teamsLoading ? (
-            <p className="py-8 text-center text-gray-500">加载中...</p>
-          ) : createdTeams.length === 0 ? (
-            <div className="rounded-xl border border-dashed border-gray-300 bg-white py-16 text-center">
-              <p className="text-gray-500">还没有创建过队伍</p>
-              <Link href="/post/new" className="mt-2 inline-block text-sm text-indigo-600 hover:underline">
-                发布招募帖
-              </Link>
-            </div>
-          ) : (
-            <div className="space-y-3">
-              {createdTeams.map((team) => (
-                <Link
-                  key={team.id}
-                  href={`/team/${team.id}`}
-                  className="block rounded-xl border border-gray-200 bg-white p-4 shadow-sm transition-shadow hover:shadow-md"
-                >
-                  <div className="flex items-center justify-between">
-                    <div>
-                      <h3 className="text-sm font-semibold text-gray-900">{team.name}</h3>
-                      <p className="mt-0.5 text-xs text-gray-500">
-                        {team.post.title} · {team._count.members} 人
-                      </p>
-                    </div>
-                    <span className="rounded-md bg-amber-100 px-2 py-0.5 text-xs font-medium text-amber-700">
-                      队长
-                    </span>
-                  </div>
-                </Link>
-              ))}
-            </div>
-          )}
-        </div>
-      )}
+function TeamList({ items, empty, pending = false }: { items: MyTeam[]; empty: string; pending?: boolean }) {
+  if (items.length === 0) {
+    return (
+      <div className="rounded-2xl border border-dashed border-slate-300 bg-white py-16 text-center shadow-sm">
+        <UsersIcon className="mx-auto h-10 w-10 text-slate-300" />
+        <p className="mt-3 text-sm font-semibold text-slate-600">{empty}</p>
+        <Link href={pending ? "/square" : "/post/new"} className="mt-3 inline-block text-sm font-bold text-teal-700 hover:underline">{pending ? "去广场看看" : "发布招募"}</Link>
+      </div>
+    );
+  }
+  return (
+    <div className="grid gap-4 md:grid-cols-2">
+      {items.map((team) => (
+        <Link key={`${team.role}-${team.id}`} href={team.role === "applicant" ? `/post/${team.post.id}` : `/team/${team.id}`} className="rounded-2xl border border-slate-200 bg-white p-5 shadow-sm hover:border-teal-200 hover:shadow-md">
+          <div className="mb-3 flex items-center justify-between gap-3">
+            <h3 className="line-clamp-1 text-base font-black text-slate-950">{team.name}</h3>
+            <span className="rounded-lg bg-amber-100 px-2 py-1 text-xs font-bold text-amber-800">{team.role === "applicant" ? "待回复" : statusMap[team.status] || team.status}</span>
+          </div>
+          <p className="line-clamp-1 text-sm text-slate-500">{team.post.title}</p>
+          {team.role !== "applicant" && <p className="mt-3 inline-flex items-center gap-1 text-xs font-bold text-slate-500"><TrophyIcon className="h-4 w-4" />{team._count.members} 人</p>}
+        </Link>
+      ))}
     </div>
   );
 }

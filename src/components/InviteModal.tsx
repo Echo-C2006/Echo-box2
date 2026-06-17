@@ -1,7 +1,8 @@
 "use client";
 
 import Link from "next/link";
-import { useState, useEffect } from "react";
+import { useEffect, useState } from "react";
+import { SendIcon, UsersIcon, XIcon } from "@/components/Icons";
 
 interface Team {
   id: number;
@@ -52,7 +53,7 @@ export default function InviteModal({ targetUser, onClose, onSuccess }: InviteMo
       onClose();
     } else {
       const err = await res.json();
-      setError(err.error || "邀请失败");
+      setError(err.error || "邀请发送失败");
     }
   }
 
@@ -60,30 +61,35 @@ export default function InviteModal({ targetUser, onClose, onSuccess }: InviteMo
 
   return (
     <>
-      <div className="fixed inset-0 z-50 bg-black/30" onClick={onClose} />
-      <div className="fixed left-1/2 top-1/2 z-50 w-full max-w-md -translate-x-1/2 -translate-y-1/2 rounded-xl bg-white p-6 shadow-xl">
-        <h3 className="mb-4 text-base font-semibold text-gray-900">
-          邀请 {targetUser.nickname} 组队
-        </h3>
-
-        <div className="space-y-3">
+      <div className="fixed inset-0 z-50 bg-slate-950/40" onClick={onClose} />
+      <div className="fixed left-1/2 top-1/2 z-50 w-[calc(100%-2rem)] max-w-md -translate-x-1/2 -translate-y-1/2 rounded-2xl bg-white p-6 shadow-2xl">
+        <div className="mb-5 flex items-start justify-between gap-4">
           <div>
-            <label className="mb-1 block text-xs font-medium text-gray-700">选择队伍</label>
+            <div className="mb-3 flex h-11 w-11 items-center justify-center rounded-xl bg-teal-50 text-teal-700">
+              <UsersIcon className="h-5 w-5" />
+            </div>
+            <h3 className="text-lg font-black text-slate-950">邀请 {targetUser.nickname} 入队</h3>
+            <p className="mt-1 text-sm text-slate-500">选择一个你管理的队伍，并补充一句邀请说明。</p>
+          </div>
+          <button onClick={onClose} className="rounded-lg p-2 text-slate-400 hover:bg-slate-100 hover:text-slate-700" aria-label="关闭">
+            <XIcon className="h-5 w-5" />
+          </button>
+        </div>
+
+        <div className="space-y-4">
+          <div>
+            <label className="mb-1.5 block text-sm font-bold text-slate-700">选择队伍</label>
             {myTeams.length === 0 ? (
-              <p className="text-xs text-gray-500">
-                还没有可邀请的队伍，请先{" "}
-                <Link
-                  href="/post/new"
-                  className="text-indigo-600 hover:underline"
-                  onClick={onClose}
-                >
-                  发布招募帖
+              <div className="rounded-xl border border-dashed border-slate-300 bg-slate-50 p-4 text-sm text-slate-600">
+                你还没有可邀请的队伍。先去
+                <Link href="/post/new" className="px-1 font-bold text-teal-700 hover:underline" onClick={onClose}>
+                  发布招募
                 </Link>
                 ，系统会自动创建队伍。
-              </p>
+              </div>
             ) : (
               <select
-                className="w-full rounded-lg border border-gray-300 px-3 py-2 text-sm outline-none focus:border-indigo-500"
+                className="w-full rounded-xl border border-slate-200 px-3 py-2.5 text-sm outline-none focus:border-teal-500 focus:ring-2 focus:ring-teal-100"
                 value={selectedTeamId}
                 onChange={(e) => setSelectedTeamId(e.target.value)}
               >
@@ -98,29 +104,30 @@ export default function InviteModal({ targetUser, onClose, onSuccess }: InviteMo
           </div>
 
           <div>
-            <label className="mb-1 block text-xs font-medium text-gray-700">附言（选填）</label>
+            <label className="mb-1.5 block text-sm font-bold text-slate-700">附言</label>
             <textarea
-              rows={3}
-              className="w-full rounded-lg border border-gray-300 px-3 py-2 text-sm outline-none focus:border-indigo-500"
-              placeholder="简单介绍一下你的队伍..."
+              rows={4}
+              className="w-full resize-none rounded-xl border border-slate-200 px-3 py-2.5 text-sm outline-none focus:border-teal-500 focus:ring-2 focus:ring-teal-100"
+              placeholder="例如：我们正在准备数模校赛，缺一位擅长数据处理的队友。"
               value={message}
               onChange={(e) => setMessage(e.target.value)}
             />
           </div>
 
-          {error && <p className="text-sm text-red-600">{error}</p>}
+          {error && <p className="rounded-lg bg-red-50 px-3 py-2 text-sm font-medium text-red-600">{error}</p>}
 
-          <div className="flex gap-2 pt-1">
+          <div className="flex gap-3 pt-1">
             <button
               onClick={handleInvite}
               disabled={loading || !selectedTeamId}
-              className="flex-1 rounded-lg bg-indigo-600 px-4 py-2 text-sm font-medium text-white hover:bg-indigo-700 disabled:opacity-50"
+              className="inline-flex flex-1 items-center justify-center gap-2 rounded-xl bg-slate-950 px-4 py-2.5 text-sm font-bold text-white hover:bg-teal-700 disabled:cursor-not-allowed disabled:opacity-50"
             >
+              <SendIcon className="h-4 w-4" />
               {loading ? "发送中..." : "发送邀请"}
             </button>
             <button
               onClick={onClose}
-              className="rounded-lg border border-gray-300 px-4 py-2 text-sm text-gray-700 hover:bg-gray-50"
+              className="rounded-xl border border-slate-200 px-4 py-2.5 text-sm font-bold text-slate-700 hover:bg-slate-50"
             >
               取消
             </button>

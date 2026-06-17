@@ -1,8 +1,9 @@
 "use client";
 
 import { useEffect, useState } from "react";
-import { useParams, useRouter } from "next/navigation";
+import { useParams } from "next/navigation";
 import Link from "next/link";
+import { ClockIcon, MessageIcon, SendIcon, TrophyIcon, UsersIcon } from "@/components/Icons";
 
 interface PostDetail {
   id: number;
@@ -14,28 +15,20 @@ interface PostDetail {
   status: string;
   expiresAt: string;
   createdAt: string;
-  author: {
-    id: number;
-    nickname: string;
-    grade: string | null;
-    major: string | null;
-    bio: string | null;
-    skills: string | null;
-  };
+  author: { id: number; nickname: string; grade: string | null; major: string | null; bio: string | null; skills: string | null };
   competition: { id: number; name: string; category: string };
-  team: {
-    id: number;
-    name: string;
-    members: { role: string; user: { id: number; nickname: string } }[];
-  } | null;
+  team: { id: number; name: string; members: { role: string; user: { id: number; nickname: string } }[] } | null;
   applications: { id: number; status: string; applicantId: number }[];
+}
+
+function parseList(value: string | null): string[] {
+  if (!value) return [];
+  try { return JSON.parse(value); } catch { return []; }
 }
 
 export default function PostDetailPage() {
   const params = useParams();
-  const router = useRouter();
   const id = params.id as string;
-
   const [post, setPost] = useState<PostDetail | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState("");
@@ -45,23 +38,19 @@ export default function PostDetailPage() {
   const [applyLoading, setApplyLoading] = useState(false);
 
   useEffect(() => {
-    fetch("/api/auth/me")
-      .then((r) => (r.ok ? r.json() : null))
-      .then((data) => setCurrentUserId(data?.user?.id || null));
+    fetch("/api/auth/me").then((r) => (r.ok ? r.json() : null)).then((data) => setCurrentUserId(data?.user?.id || null));
   }, []);
 
+  async function fetchPost() {
+    const data = await fetch(`/api/posts/${id}`).then((r) => (r.ok ? r.json() : null));
+    if (data?.post) setPost(data.post);
+    else setError("招募不存在");
+    setLoading(false);
+  }
+
   useEffect(() => {
-    if (!id) return;
-    fetch(`/api/posts/${id}`)
-      .then((r) => (r.ok ? r.json() : null))
-      .then((data) => {
-        if (data?.post) {
-          setPost(data.post);
-        } else {
-          setError("帖子不存在");
-        }
-        setLoading(false);
-      });
+    if (id) fetchPost();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [id]);
 
   async function handleApply() {
@@ -77,200 +66,101 @@ export default function PostDetailPage() {
       alert("申请已提交");
       setApplyOpen(false);
       setApplyReason("");
-      // refresh
-      const data = await fetch(`/api/posts/${id}`).then((r) => r.json());
-      setPost(data.post);
+      fetchPost();
     } else {
       const err = await res.json();
       alert(err.error || "申请失败");
     }
   }
 
-  if (loading) return <p className="py-12 text-center text-gray-500">加载中...</p>;
-  if (error || !post) return <p className="py-12 text-center text-red-500">{error || "加载失败"}</p>;
+  if (loading) return <p className="py-12 text-center text-sm text-slate-500">正在加载...</p>;
+  if (error || !post) return <p className="py-12 text-center text-sm text-red-500">{error || "加载失败"}</p>;
 
-  const skills: string[] = post.skills ? JSON.parse(post.skills) : [];
+  const skills = parseList(post.skills);
   const isAuthor = currentUserId === post.author.id;
   const isFull = post.status === "full";
-
-  // 检查当前用户是否已是队员
   const isMember = post.team?.members.some((m) => m.user.id === currentUserId) ?? false;
-
-  // 检查当前用户的申请状态
-  const myApplication = post.applications.find((a) => a.applicantId === currentUserId);
-  const appStatus = myApplication?.status || null; // "pending" | "accepted" | "rejected" | null
-
+  const appStatus = post.applications.find((a) => a.applicantId === currentUserId)?.status || null;
   const daysLeft = Math.ceil((new Date(post.expiresAt).getTime() - Date.now()) / 86400000);
 
   return (
-    <div className="mx-auto max-w-3xl px-4 py-6">
-      <div className="rounded-xl border border-gray-200 bg-white p-6 shadow-sm">
-        <div className="mb-4 flex items-center gap-2">
-          <span className="rounded-md bg-blue-100 px-2 py-1 text-xs font-medium text-blue-700">
-            {post.competition.name}
-          </span>
-          {post.status === "full" ? (
-            <span className="rounded-md bg-gray-100 px-2 py-1 text-xs text-gray-600">已满</span>
-          ) : (
-            <span className="rounded-md bg-green-100 px-2 py-1 text-xs text-green-700">招募中</span>
-          )}
-        </div>
-
-        <h1 className="mb-4 text-xl font-bold text-gray-900">{post.title}</h1>
-
-        <div className="mb-6 flex items-center gap-3">
-          <div className="flex h-10 w-10 items-center justify-center rounded-full bg-indigo-100 text-sm font-bold text-indigo-700">
-            {post.author.nickname[0]}
+    <div className="mx-auto max-w-5xl px-4 py-8">
+      <div className="grid gap-6 lg:grid-cols-[1fr_18rem]">
+        <article className="rounded-2xl border border-slate-200 bg-white p-6 shadow-sm sm:p-8">
+          <div className="mb-5 flex flex-wrap items-center gap-2">
+            <span className="rounded-lg bg-teal-50 px-3 py-1 text-xs font-bold text-teal-700">{post.competition.name}</span>
+            <span className={`rounded-lg px-3 py-1 text-xs font-bold ${isFull ? "bg-slate-100 text-slate-500" : "bg-amber-100 text-amber-800"}`}>{isFull ? "已满员" : "招募中"}</span>
           </div>
-          <div>
-            <p className="text-sm font-medium text-gray-900">
-              <Link href={`/profile/${post.author.id}`} className="hover:text-indigo-600 hover:underline">
-                {post.author.nickname}
-              </Link>
-            </p>
-            <p className="text-xs text-gray-500">
-              {post.author.grade || ""} {post.author.major || ""}
-            </p>
-          </div>
-        </div>
-
-        <div className="mb-6 whitespace-pre-wrap text-sm leading-relaxed text-gray-700">
-          {post.description || "暂无详细描述"}
-        </div>
-
-        <div className="mb-6">
-          <h3 className="mb-2 text-sm font-semibold text-gray-900">需求技能</h3>
-          <div className="flex flex-wrap gap-2">
-            {skills.length > 0 ? (
-              skills.map((s) => (
-                <span key={s} className="rounded-md bg-gray-100 px-2 py-1 text-xs text-gray-700">
-                  {s}
-                </span>
-              ))
-            ) : (
-              <span className="text-xs text-gray-400">未指定</span>
-            )}
-          </div>
-        </div>
-
-        <div className="mb-6 grid grid-cols-2 gap-4 sm:grid-cols-3">
-          <div className="rounded-lg bg-gray-50 p-3">
-            <p className="text-xs text-gray-500">队伍规模</p>
-            <p className="text-sm font-semibold text-gray-900">
-              {post.currentSize} / {post.targetSize} 人
-            </p>
-          </div>
-          <div className="rounded-lg bg-gray-50 p-3">
-            <p className="text-xs text-gray-500">有效期</p>
-            <p className="text-sm font-semibold text-gray-900">
-              {daysLeft > 0 ? `还剩 ${daysLeft} 天` : "已过期"}
-            </p>
-          </div>
-          <div className="rounded-lg bg-gray-50 p-3">
-            <p className="text-xs text-gray-500">发布时间</p>
-            <p className="text-sm font-semibold text-gray-900">
-              {new Date(post.createdAt).toLocaleDateString()}
-            </p>
-          </div>
-        </div>
-
-        {post.team && (
-          <div className="mb-6">
-            <h3 className="mb-2 text-sm font-semibold text-gray-900">现有成员</h3>
-            <div className="flex flex-wrap gap-3">
-              {post.team.members.map((m) => (
-                <div key={m.user.id} className="flex items-center gap-2 rounded-lg border border-gray-200 px-3 py-2">
-                  <div className="flex h-8 w-8 items-center justify-center rounded-full bg-gray-100 text-xs font-bold text-gray-600">
-                    {m.user.nickname[0]}
-                  </div>
-                  <div>
-                    <p className="text-xs font-medium text-gray-900">{m.user.nickname}</p>
-                    <p className="text-[10px] text-gray-500">{m.role === "captain" ? "队长" : "队员"}</p>
-                  </div>
-                </div>
-              ))}
+          <h1 className="text-3xl font-black leading-tight text-slate-950">{post.title}</h1>
+          <Link href={`/profile/${post.author.id}`} className="mt-5 flex items-center gap-3 rounded-2xl bg-slate-50 p-3 hover:bg-teal-50">
+            <div className="flex h-11 w-11 items-center justify-center rounded-xl bg-teal-100 text-sm font-black text-teal-700">{post.author.nickname[0]}</div>
+            <div>
+              <p className="text-sm font-black text-slate-950">{post.author.nickname}</p>
+              <p className="text-xs text-slate-500">{post.author.grade || "年级未填"} {post.author.major || ""}</p>
+            </div>
+          </Link>
+          <div className="mt-6 whitespace-pre-wrap text-sm leading-7 text-slate-700">{post.description || "队长暂未填写详细说明。"}</div>
+          <div className="mt-6">
+            <h2 className="mb-3 text-sm font-black text-slate-950">需求技能</h2>
+            <div className="flex flex-wrap gap-2">
+              {skills.length > 0 ? skills.map((s) => <span key={s} className="rounded-md bg-slate-100 px-2.5 py-1 text-xs font-bold text-slate-600">{s}</span>) : <span className="text-sm text-slate-400">未指定</span>}
             </div>
           </div>
-        )}
-
-        {!isAuthor && (
-          <div className="flex gap-3">
-            {isMember ? (
-              <button disabled className="rounded-lg bg-gray-100 px-5 py-2 text-sm font-medium text-gray-500">
-                已是队员
-              </button>
-            ) : appStatus === "pending" ? (
-              <button disabled className="rounded-lg bg-gray-100 px-5 py-2 text-sm font-medium text-gray-500">
-                已申请，等待回复
-              </button>
-            ) : appStatus === "accepted" ? (
-              <button disabled className="rounded-lg bg-gray-100 px-5 py-2 text-sm font-medium text-gray-500">
-                已同意
-              </button>
-            ) : appStatus === "rejected" ? (
-              <button disabled className="rounded-lg bg-gray-100 px-5 py-2 text-sm font-medium text-gray-500">
-                已拒绝
-              </button>
-            ) : isFull ? (
-              <button disabled className="rounded-lg bg-gray-100 px-5 py-2 text-sm font-medium text-gray-500">
-                已满
-              </button>
-            ) : (
-              <>
-                {!applyOpen ? (
-                  <button
-                    onClick={() => setApplyOpen(true)}
-                    className="rounded-lg bg-indigo-600 px-5 py-2 text-sm font-medium text-white hover:bg-indigo-700"
-                  >
-                    申请加入
-                  </button>
-                ) : (
-                  <div className="w-full space-y-3">
-                    <textarea
-                      rows={3}
-                      className="w-full rounded-lg border border-gray-300 px-3 py-2 text-sm outline-none focus:border-indigo-500 focus:ring-1 focus:ring-indigo-500"
-                      placeholder="请简述你的优势和相关经验（50-200字）"
-                      value={applyReason}
-                      onChange={(e) => setApplyReason(e.target.value)}
-                    />
-                    <div className="flex gap-2">
-                      <button
-                        onClick={handleApply}
-                        disabled={applyLoading || !applyReason.trim()}
-                        className="rounded-lg bg-indigo-600 px-4 py-2 text-sm font-medium text-white hover:bg-indigo-700 disabled:opacity-50"
-                      >
-                        {applyLoading ? "提交中..." : "提交申请"}
-                      </button>
-                      <button
-                        onClick={() => setApplyOpen(false)}
-                        className="rounded-lg border border-gray-300 px-4 py-2 text-sm text-gray-700 hover:bg-gray-50"
-                      >
-                        取消
-                      </button>
+          {post.team && (
+            <div className="mt-7">
+              <h2 className="mb-3 text-sm font-black text-slate-950">现有成员</h2>
+              <div className="grid gap-2 sm:grid-cols-2">
+                {post.team.members.map((m) => (
+                  <div key={m.user.id} className="flex items-center gap-3 rounded-xl border border-slate-200 p-3">
+                    <div className="flex h-9 w-9 items-center justify-center rounded-xl bg-slate-100 text-xs font-black text-slate-600">{m.user.nickname[0]}</div>
+                    <div>
+                      <p className="text-sm font-bold text-slate-900">{m.user.nickname}</p>
+                      <p className="text-xs text-slate-500">{m.role === "captain" ? "队长" : "队员"}</p>
                     </div>
                   </div>
-                )}
-              </>
-            )}
-            <Link
-              href={`/messages?to=${post.author.id}`}
-              className="rounded-lg border border-gray-300 px-5 py-2 text-sm font-medium text-gray-700 hover:bg-gray-50"
-            >
-              私信队长
-            </Link>
-          </div>
-        )}
+                ))}
+              </div>
+            </div>
+          )}
+        </article>
 
-        {isAuthor && post.team && (
-          <div className="flex gap-3">
-            <Link
-              href={`/team/${post.team.id}`}
-              className="rounded-lg bg-indigo-600 px-5 py-2 text-sm font-medium text-white hover:bg-indigo-700"
-            >
-              管理队伍
-            </Link>
+        <aside className="space-y-4">
+          <div className="rounded-2xl border border-slate-200 bg-white p-5 shadow-sm">
+            <h2 className="mb-4 text-sm font-black text-slate-950">招募概览</h2>
+            <div className="space-y-3 text-sm">
+              <div className="flex items-center justify-between"><span className="inline-flex items-center gap-2 text-slate-500"><UsersIcon className="h-4 w-4" />队伍规模</span><b>{post.currentSize}/{post.targetSize} 人</b></div>
+              <div className="flex items-center justify-between"><span className="inline-flex items-center gap-2 text-slate-500"><ClockIcon className="h-4 w-4" />有效期</span><b>{daysLeft > 0 ? `${daysLeft} 天` : "已截止"}</b></div>
+              <div className="flex items-center justify-between"><span className="inline-flex items-center gap-2 text-slate-500"><TrophyIcon className="h-4 w-4" />发布</span><b>{new Date(post.createdAt).toLocaleDateString()}</b></div>
+            </div>
           </div>
-        )}
+
+          {!isAuthor ? (
+            <div className="rounded-2xl border border-slate-200 bg-white p-5 shadow-sm">
+              {isMember || appStatus || isFull ? (
+                <button disabled className="w-full rounded-xl bg-slate-100 px-4 py-2.5 text-sm font-bold text-slate-500">
+                  {isMember ? "已是队员" : appStatus === "pending" ? "申请待回复" : appStatus === "accepted" ? "申请已通过" : appStatus === "rejected" ? "申请已拒绝" : "队伍已满"}
+                </button>
+              ) : !applyOpen ? (
+                <button onClick={() => setApplyOpen(true)} className="inline-flex w-full items-center justify-center gap-2 rounded-xl bg-slate-950 px-4 py-2.5 text-sm font-bold text-white hover:bg-teal-700">
+                  <SendIcon className="h-4 w-4" />申请加入
+                </button>
+              ) : (
+                <div className="space-y-3">
+                  <textarea rows={4} className="w-full resize-none rounded-xl border border-slate-200 px-3 py-2.5 text-sm outline-none focus:border-teal-500 focus:ring-2 focus:ring-teal-100" placeholder="简述你的优势和相关经验" value={applyReason} onChange={(e) => setApplyReason(e.target.value)} />
+                  <div className="flex gap-2">
+                    <button onClick={handleApply} disabled={applyLoading || !applyReason.trim()} className="flex-1 rounded-xl bg-slate-950 px-4 py-2 text-sm font-bold text-white hover:bg-teal-700 disabled:opacity-50">{applyLoading ? "提交中..." : "提交申请"}</button>
+                    <button onClick={() => setApplyOpen(false)} className="rounded-xl border border-slate-200 px-4 py-2 text-sm font-bold text-slate-700">取消</button>
+                  </div>
+                </div>
+              )}
+              <Link href={`/messages?to=${post.author.id}`} className="mt-3 inline-flex w-full items-center justify-center gap-2 rounded-xl border border-slate-200 px-4 py-2.5 text-sm font-bold text-slate-700 hover:bg-slate-50">
+                <MessageIcon className="h-4 w-4" />私信队长
+              </Link>
+            </div>
+          ) : post.team ? (
+            <Link href={`/team/${post.team.id}`} className="inline-flex w-full items-center justify-center rounded-xl bg-slate-950 px-4 py-2.5 text-sm font-bold text-white hover:bg-teal-700">管理队伍</Link>
+          ) : null}
+        </aside>
       </div>
     </div>
   );

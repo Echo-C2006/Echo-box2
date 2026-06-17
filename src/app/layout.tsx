@@ -3,8 +3,9 @@ import "./globals.css";
 import Navbar from "@/components/Navbar";
 
 export const metadata: Metadata = {
-  title: "竞赛组队工具",
-  description: "帮助在校学生找到学科竞赛队友",
+  title: "赛搭",
+  description: "校内学科竞赛智能组队平台",
+  icons: [{ rel: "icon", url: "/example.png" }],
 };
 
 export default function RootLayout({
@@ -14,9 +15,9 @@ export default function RootLayout({
 }>) {
   return (
     <html lang="zh-CN" className="h-full antialiased">
-      <body className="min-h-full flex flex-col bg-gray-50 text-gray-900">
+      <body className="min-h-full bg-slate-50 text-slate-950">
         <Navbar />
-        <main className="flex-1">{children}</main>
+        <main className="min-h-[calc(100vh-64px)]">{children}</main>
       </body>
     </html>
   );

@@ -3,12 +3,29 @@
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { useEffect, useState } from "react";
+import {
+  BrandMark,
+  GridIcon,
+  MenuIcon,
+  MessageIcon,
+  PlusIcon,
+  UserIcon,
+  UsersIcon,
+  XIcon,
+} from "@/components/Icons";
 
 interface User {
   id: number;
   nickname: string;
   email: string;
 }
+
+const navLinks = [
+  { href: "/square", label: "组队广场", icon: GridIcon },
+  { href: "/talent", label: "人才库", icon: UsersIcon },
+  { href: "/post/new", label: "发布招募", icon: PlusIcon },
+  { href: "/messages", label: "消息", icon: MessageIcon },
+];
 
 export default function Navbar() {
   const pathname = usePathname();
@@ -19,108 +36,96 @@ export default function Navbar() {
     fetch("/api/auth/me")
       .then((r) => (r.ok ? r.json() : null))
       .then((data) => setUser(data?.user || null));
+    setMobileOpen(false);
   }, [pathname]);
-
-  const navLinks = [
-    { href: "/square", label: "广场" },
-    { href: "/talent", label: "人才库" },
-    { href: "/post/new", label: "+ 发帖" },
-    { href: "/messages", label: "消息" },
-  ];
 
   const isActive = (href: string) => pathname === href || pathname.startsWith(href + "/");
 
   return (
-    <header className="sticky top-0 z-50 border-b border-gray-200 bg-white/80 backdrop-blur">
-      <div className="mx-auto flex h-14 max-w-5xl items-center justify-between px-4">
-        <Link href="/square" className="text-lg font-bold text-indigo-600">
-          竞赛组队
+    <header className="sticky top-0 z-50 border-b border-slate-200/80 bg-white/90 backdrop-blur-xl">
+      <div className="mx-auto flex h-16 max-w-6xl items-center justify-between px-4">
+        <Link href="/square" className="flex items-center gap-3">
+          <BrandMark className="h-9 w-9" />
+          <div className="leading-tight">
+            <div className="text-lg font-black tracking-wide text-slate-950">赛搭</div>
+            <div className="hidden text-[11px] font-medium text-slate-500 sm:block">智能竞赛组队</div>
+          </div>
         </Link>
 
-        {/* Desktop nav */}
         <nav className="hidden items-center gap-1 md:flex">
-          {navLinks.map((link) => (
-            <Link
-              key={link.href}
-              href={link.href}
-              className={`rounded-md px-3 py-2 text-sm font-medium transition-colors ${
-                isActive(link.href)
-                  ? "bg-indigo-50 text-indigo-700"
-                  : "text-gray-600 hover:bg-gray-50 hover:text-gray-900"
-              }`}
-            >
-              {link.label}
-            </Link>
-          ))}
+          {navLinks.map((link) => {
+            const LinkIcon = link.icon;
+            return (
+              <Link
+                key={link.href}
+                href={link.href}
+                className={`inline-flex items-center gap-2 rounded-lg px-3 py-2 text-sm font-semibold ${
+                  isActive(link.href)
+                    ? "bg-teal-50 text-teal-700 shadow-sm"
+                    : "text-slate-600 hover:bg-slate-100 hover:text-slate-950"
+                }`}
+              >
+                <LinkIcon className="h-4 w-4" />
+                {link.label}
+              </Link>
+            );
+          })}
           {user ? (
             <Link
               href="/profile"
-              className={`ml-2 rounded-md px-3 py-2 text-sm font-medium transition-colors ${
+              className={`ml-2 inline-flex items-center gap-2 rounded-lg px-3 py-2 text-sm font-semibold ${
                 isActive("/profile")
-                  ? "bg-indigo-50 text-indigo-700"
-                  : "text-gray-600 hover:bg-gray-50 hover:text-gray-900"
+                  ? "bg-teal-50 text-teal-700"
+                  : "text-slate-600 hover:bg-slate-100 hover:text-slate-950"
               }`}
             >
+              <UserIcon className="h-4 w-4" />
               {user.nickname}
             </Link>
           ) : (
             <Link
               href="/auth/login"
-              className="ml-2 rounded-md bg-indigo-600 px-4 py-2 text-sm font-medium text-white hover:bg-indigo-700"
+              className="ml-2 rounded-lg bg-slate-950 px-4 py-2 text-sm font-semibold text-white shadow-sm hover:bg-teal-700"
             >
               登录
             </Link>
           )}
         </nav>
 
-        {/* Mobile menu button */}
         <button
-          className="rounded-md p-2 text-gray-600 hover:bg-gray-100 md:hidden"
-          onClick={() => setMobileOpen(!mobileOpen)}
-          aria-label="菜单"
+          className="rounded-lg border border-slate-200 p-2 text-slate-600 hover:bg-slate-100 md:hidden"
+          onClick={() => setMobileOpen((v) => !v)}
+          aria-label="打开菜单"
         >
-          <svg className="h-6 w-6" fill="none" stroke="currentColor" strokeWidth={2} viewBox="0 0 24 24">
-            {mobileOpen ? (
-              <path strokeLinecap="round" strokeLinejoin="round" d="M6 18L18 6M6 6l12 12" />
-            ) : (
-              <path strokeLinecap="round" strokeLinejoin="round" d="M4 6h16M4 12h16M4 18h16" />
-            )}
-          </svg>
+          {mobileOpen ? <XIcon className="h-5 w-5" /> : <MenuIcon className="h-5 w-5" />}
         </button>
       </div>
 
-      {/* Mobile nav */}
       {mobileOpen && (
-        <div className="border-t border-gray-100 bg-white px-4 py-3 md:hidden">
-          <div className="flex flex-col gap-1">
-            {navLinks.map((link) => (
-              <Link
-                key={link.href}
-                href={link.href}
-                onClick={() => setMobileOpen(false)}
-                className={`rounded-md px-3 py-2 text-sm font-medium ${
-                  isActive(link.href)
-                    ? "bg-indigo-50 text-indigo-700"
-                    : "text-gray-600 hover:bg-gray-50"
-                }`}
-              >
-                {link.label}
-              </Link>
-            ))}
+        <div className="border-t border-slate-100 bg-white px-4 py-3 md:hidden">
+          <div className="mx-auto flex max-w-6xl flex-col gap-1">
+            {navLinks.map((link) => {
+              const LinkIcon = link.icon;
+              return (
+                <Link
+                  key={link.href}
+                  href={link.href}
+                  className={`inline-flex items-center gap-2 rounded-lg px-3 py-2 text-sm font-semibold ${
+                    isActive(link.href) ? "bg-teal-50 text-teal-700" : "text-slate-600 hover:bg-slate-100"
+                  }`}
+                >
+                  <LinkIcon className="h-4 w-4" />
+                  {link.label}
+                </Link>
+              );
+            })}
             {user ? (
-              <Link
-                href="/profile"
-                onClick={() => setMobileOpen(false)}
-                className="rounded-md px-3 py-2 text-sm font-medium text-gray-600 hover:bg-gray-50"
-              >
-                我的 ({user.nickname})
+              <Link href="/profile" className="inline-flex items-center gap-2 rounded-lg px-3 py-2 text-sm font-semibold text-slate-600 hover:bg-slate-100">
+                <UserIcon className="h-4 w-4" />
+                我的主页
               </Link>
             ) : (
-              <Link
-                href="/auth/login"
-                onClick={() => setMobileOpen(false)}
-                className="rounded-md bg-indigo-600 px-3 py-2 text-center text-sm font-medium text-white"
-              >
+              <Link href="/auth/login" className="rounded-lg bg-slate-950 px-3 py-2 text-center text-sm font-semibold text-white">
                 登录 / 注册
               </Link>
             )}
