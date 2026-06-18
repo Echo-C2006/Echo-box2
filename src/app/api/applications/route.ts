@@ -89,6 +89,10 @@ export async function POST(req: NextRequest) {
       return NextResponse.json({ error: "帖子不存在" }, { status: 404 });
     }
 
+    if (post.status === "full" || post.currentSize >= post.targetSize) {
+      return NextResponse.json({ error: "该队伍已满员，暂不接受申请" }, { status: 409 });
+    }
+
     if (post.authorId === user.id) {
       return NextResponse.json({ error: "不能申请自己的队伍" }, { status: 400 });
     }

@@ -23,6 +23,10 @@ export async function POST(req: NextRequest) {
       return NextResponse.json({ error: "队伍不存在" }, { status: 404 });
     }
 
+    if (team.post.status === "full" || team.post.currentSize >= team.post.targetSize) {
+      return NextResponse.json({ error: "该队伍已满员，无法邀请新成员" }, { status: 409 });
+    }
+
     const isCaptain = team.members.some((m) => m.userId === user.id && m.role === "captain");
     if (!isCaptain) {
       return NextResponse.json({ error: "只有队长可以邀请" }, { status: 403 });

@@ -19,7 +19,7 @@ export async function GET(req: NextRequest) {
         include: {
           team: {
             include: {
-              post: { select: { id: true, title: true } },
+              post: { select: { id: true, title: true, currentSize: true, targetSize: true } },
               _count: { select: { members: true } },
             },
           },

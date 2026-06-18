@@ -7,7 +7,7 @@ import { SendIcon, UsersIcon, XIcon } from "@/components/Icons";
 interface Team {
   id: number;
   name: string;
-  post: { id: number; title: string };
+  post: { id: number; title: string; currentSize: number; targetSize: number };
   _count: { members: number };
 }
 
@@ -94,11 +94,14 @@ export default function InviteModal({ targetUser, onClose, onSuccess }: InviteMo
                 onChange={(e) => setSelectedTeamId(e.target.value)}
               >
                 <option value="">请选择队伍</option>
-                {myTeams.map((t) => (
-                  <option key={t.id} value={t.id}>
-                    {t.name}（{t._count.members} 人）
-                  </option>
-                ))}
+                {myTeams.map((t) => {
+                  const isFull = t._count.members >= t.post.targetSize;
+                  return (
+                    <option key={t.id} value={t.id} disabled={isFull}>
+                      {t.name}（{t._count.members}/{t.post.targetSize} 人{isFull ? " 已满" : ""}）
+                    </option>
+                  );
+                })}
               </select>
             )}
           </div>

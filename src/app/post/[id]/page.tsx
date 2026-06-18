@@ -4,6 +4,7 @@ import { useEffect, useState } from "react";
 import { useParams } from "next/navigation";
 import Link from "next/link";
 import { ClockIcon, MessageIcon, SendIcon, TrophyIcon, UsersIcon } from "@/components/Icons";
+import ApplyModal from "@/components/ApplyModal";
 
 interface PostDetail {
   id: number;
@@ -33,9 +34,7 @@ export default function PostDetailPage() {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState("");
   const [currentUserId, setCurrentUserId] = useState<number | null>(null);
-  const [applyReason, setApplyReason] = useState("");
   const [applyOpen, setApplyOpen] = useState(false);
-  const [applyLoading, setApplyLoading] = useState(false);
 
   useEffect(() => {
     fetch("/api/auth/me").then((r) => (r.ok ? r.json() : null)).then((data) => setCurrentUserId(data?.user?.id || null));
@@ -52,26 +51,6 @@ export default function PostDetailPage() {
     if (id) fetchPost();
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [id]);
-
-  async function handleApply() {
-    if (!applyReason.trim()) return;
-    setApplyLoading(true);
-    const res = await fetch("/api/applications", {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ postId: Number(id), reason: applyReason }),
-    });
-    setApplyLoading(false);
-    if (res.ok) {
-      alert("申请已提交");
-      setApplyOpen(false);
-      setApplyReason("");
-      fetchPost();
-    } else {
-      const err = await res.json();
-      alert(err.error || "申请失败");
-    }
-  }
 
   if (loading) return <p className="py-12 text-center text-sm text-slate-500">正在加载...</p>;
   if (error || !post) return <p className="py-12 text-center text-sm text-red-500">{error || "加载失败"}</p>;
@@ -140,18 +119,18 @@ export default function PostDetailPage() {
                 <button disabled className="w-full rounded-xl bg-slate-100 px-4 py-2.5 text-sm font-bold text-slate-500">
                   {isMember ? "已是队员" : appStatus === "pending" ? "申请待回复" : appStatus === "accepted" ? "申请已通过" : appStatus === "rejected" ? "申请已拒绝" : "队伍已满"}
                 </button>
-              ) : !applyOpen ? (
+              ) : (
                 <button onClick={() => setApplyOpen(true)} className="inline-flex w-full items-center justify-center gap-2 rounded-xl bg-slate-950 px-4 py-2.5 text-sm font-bold text-white hover:bg-teal-700">
                   <SendIcon className="h-4 w-4" />申请加入
                 </button>
-              ) : (
-                <div className="space-y-3">
-                  <textarea rows={4} className="w-full resize-none rounded-xl border border-slate-200 px-3 py-2.5 text-sm outline-none focus:border-teal-500 focus:ring-2 focus:ring-teal-100" placeholder="简述你的优势和相关经验" value={applyReason} onChange={(e) => setApplyReason(e.target.value)} />
-                  <div className="flex gap-2">
-                    <button onClick={handleApply} disabled={applyLoading || !applyReason.trim()} className="flex-1 rounded-xl bg-slate-950 px-4 py-2 text-sm font-bold text-white hover:bg-teal-700 disabled:opacity-50">{applyLoading ? "提交中..." : "提交申请"}</button>
-                    <button onClick={() => setApplyOpen(false)} className="rounded-xl border border-slate-200 px-4 py-2 text-sm font-bold text-slate-700">取消</button>
-                  </div>
-                </div>
+              )}
+              {applyOpen && (
+                <ApplyModal
+                  postTitle={post.title}
+                  postId={post.id}
+                  onClose={() => setApplyOpen(false)}
+                  onSuccess={fetchPost}
+                />
               )}
               <Link href={`/messages?to=${post.author.id}`} className="mt-3 inline-flex w-full items-center justify-center gap-2 rounded-xl border border-slate-200 px-4 py-2.5 text-sm font-bold text-slate-700 hover:bg-slate-50">
                 <MessageIcon className="h-4 w-4" />私信队长
