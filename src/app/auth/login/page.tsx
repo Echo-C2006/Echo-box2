@@ -68,6 +68,9 @@ function LoginForm() {
           <button type="submit" disabled={loading} className="w-full rounded-xl bg-slate-950 px-4 py-2.5 text-sm font-bold text-white hover:bg-teal-700 disabled:opacity-50">
             {loading ? "登录中..." : "登录"}
           </button>
+          <div className="text-right">
+            <Link href="/auth/forgot-password" className="text-sm font-semibold text-teal-700 hover:underline">忘记密码？</Link>
+          </div>
         </form>
         <p className="mt-5 text-center text-sm text-slate-600">
           还没有账号？

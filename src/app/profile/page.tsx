@@ -16,6 +16,10 @@ interface User {
   experience: string | null;
   interests: string | null;
   timeCommitment: string | null;
+  realName: string | null;
+  school: string | null;
+  studentId: string | null;
+  idVerified: boolean;
 }
 
 interface MyTeam {
@@ -121,6 +125,23 @@ export default function ProfilePage() {
               <div>
                 <h1 className="text-2xl font-black">{user.nickname}</h1>
                 <p className="mt-1 text-sm text-slate-300">{user.grade || "年级未填"}{user.major ? ` · ${user.major}` : ""}</p>
+                <div className="mt-2">
+                  {user.idVerified ? (
+                    <span className="inline-flex items-center gap-1 rounded-lg bg-teal-600/20 px-2.5 py-1 text-xs font-bold text-teal-300">
+                      <svg className="h-3.5 w-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2.5}>
+                        <path strokeLinecap="round" strokeLinejoin="round" d="M9 12.75L11.25 15 15 9.75M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
+                      </svg>
+                      已实名 · {user.realName} · {user.school}
+                    </span>
+                  ) : (
+                    <Link href="/auth/verify" className="inline-flex items-center gap-1 rounded-lg bg-amber-400/20 px-2.5 py-1 text-xs font-bold text-amber-300 hover:bg-amber-400/30">
+                      <svg className="h-3.5 w-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2.5}>
+                        <path strokeLinecap="round" strokeLinejoin="round" d="M16.5 10.5V6.75a4.5 4.5 0 10-9 0v3.75m-.75 11.25h10.5a2.25 2.25 0 002.25-2.25v-6.75a2.25 2.25 0 00-2.25-2.25H6.75a2.25 2.25 0 00-2.25 2.25v6.75a2.25 2.25 0 002.25 2.25z" />
+                      </svg>
+                      去实名认证
+                    </Link>
+                  )}
+                </div>
               </div>
             </div>
             <button onClick={handleLogout} className="rounded-xl bg-white/10 px-4 py-2 text-sm font-bold text-white hover:bg-white/20">退出登录</button>
@@ -159,6 +180,19 @@ export default function ProfilePage() {
                 {editMode ? <input name={name} className="w-full rounded-xl border border-slate-200 px-3 py-2.5 text-sm outline-none focus:border-teal-500 focus:ring-2 focus:ring-teal-100" value={(form as any)[name] || ""} onChange={handleChange} /> : <p className="rounded-xl bg-slate-50 px-3 py-2.5 text-sm text-slate-700">{(user as any)[name] || "未填写"}</p>}
               </div>
             ))}
+            <div className="md:col-span-2">
+              <label className="mb-1.5 block text-sm font-bold text-slate-700">实名认证</label>
+              {user.idVerified ? (
+                <div className="rounded-xl bg-teal-50 px-3 py-2.5 text-sm text-teal-700">
+                  已认证 · {user.realName} · {user.school} · {user.studentId}
+                </div>
+              ) : (
+                <div className="rounded-xl bg-amber-50 px-3 py-2.5 text-sm text-amber-700">
+                  未认证
+                  <Link href="/auth/verify" className="ml-2 font-bold text-amber-800 underline hover:text-amber-900">去认证</Link>
+                </div>
+              )}
+            </div>
             <div className="md:col-span-2">
               <label className="mb-1.5 block text-sm font-bold text-slate-700">个人简介</label>
               {editMode ? <textarea name="bio" rows={4} className="w-full resize-none rounded-xl border border-slate-200 px-3 py-2.5 text-sm outline-none focus:border-teal-500 focus:ring-2 focus:ring-teal-100" value={form.bio || ""} onChange={handleChange} /> : <p className="rounded-xl bg-slate-50 px-3 py-2.5 text-sm leading-6 text-slate-700">{user.bio || "未填写"}</p>}

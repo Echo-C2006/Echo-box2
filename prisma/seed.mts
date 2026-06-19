@@ -371,6 +371,15 @@ async function main() {
   for (let i = 0; i < USERS.length; i++) {
     const u = USERS[i];
     const email = `user${i + 1}@test.com`;
+    const verifiedUsers = [0, 2, 3, 9]; // 张明、王浩然、陈思琪、周博文
+
+    const verifiedData = [
+      { realName: "张明", school: "浙江大学", studentId: "20240101" },
+      { realName: "王浩然", school: "浙江大学", studentId: "20240103" },
+      { realName: "陈思琪", school: "浙江大学", studentId: "20240104" },
+      { realName: "周博文", school: "浙江大学", studentId: "20240110" },
+    ];
+
     const user = await prisma.user.create({
       data: {
         email,
@@ -385,6 +394,9 @@ async function main() {
         timeCommitment: u.timeCommitment,
         profileTipSeen: u.profileTipSeen,
         createdAt: u.createdAt,
+        ...(verifiedUsers.includes(i)
+          ? { ...verifiedData[verifiedUsers.indexOf(i)], idVerified: true }
+          : {}),
       },
     });
     createdUsers.push({ id: user.id, email: user.email });
