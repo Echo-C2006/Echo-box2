@@ -9,6 +9,7 @@ export async function GET(req: NextRequest) {
     const grade = searchParams.get("grade") || "";
     const major = searchParams.get("major") || "";
     const interest = searchParams.get("interest") || "";
+    const sort = searchParams.get("sort") || "";
 
     const where: any = {};
 
@@ -29,9 +30,14 @@ export async function GET(req: NextRequest) {
     }
 
     // skills and interests are JSON strings, filter in application layer
+    let orderBy: any = { createdAt: "desc" };
+    if (sort === "teams") {
+      orderBy = { teamMembers: { _count: "desc" } };
+    }
+
     const users = await prisma.user.findMany({
       where,
-      orderBy: { createdAt: "desc" },
+      orderBy,
       omit: { password: true },
     });
 

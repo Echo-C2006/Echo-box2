@@ -24,6 +24,7 @@ interface Competition {
   id: number;
   name: string;
   category: string;
+  _count: { posts: number };
 }
 
 function parseList(value: string | null): string[] {
@@ -79,151 +80,199 @@ export default function SquarePage() {
       });
   }, [filterComp, sort]);
 
-  const categoryCount = useMemo(() => new Set(competitions.map((c) => c.category)).size, [competitions]);
-  const allCompetitions = [{ id: 0, name: "全部赛事", category: "" }, ...competitions];
+  const activeCompetition = competitions.find((c) => c.id === filterComp);
 
   return (
     <div className="mx-auto max-w-6xl px-4 py-8">
-      <section className="mb-8 overflow-hidden rounded-2xl border border-slate-200 bg-white shadow-sm">
-        <div className="grid gap-0 lg:grid-cols-[1.35fr_0.65fr]">
-          <div className="p-6 sm:p-8">
-            <div className="mb-4 inline-flex items-center gap-2 rounded-full bg-teal-50 px-3 py-1 text-xs font-bold text-teal-700">
-              <SparkIcon className="h-4 w-4" />
-              校内学科竞赛智能组队平台
+      {/* 两栏布局 */}
+      <div className="flex gap-6">
+        {/* ========== 左侧：竞赛列表 ========== */}
+        <aside className="hidden w-60 shrink-0 lg:block">
+          <div className="sticky top-24 rounded-2xl border border-slate-200 bg-white p-4 shadow-sm">
+            <div className="mb-1 flex items-center justify-between">
+              <h2 className="text-sm font-black text-slate-950">赛事方向</h2>
+              <span className="text-xs font-semibold text-slate-400">{competitions.length}</span>
             </div>
-            <h1 className="max-w-2xl text-3xl font-black leading-tight text-slate-950 sm:text-4xl">
-              找到技能互补、时间合拍、目标一致的竞赛队友
-            </h1>
-            <p className="mt-4 max-w-2xl text-sm leading-6 text-slate-600">
-              赛搭把招募、人才检索、申请审批和私信沟通放在同一个工作台里，让建模、程序设计、创新创业等校内竞赛组队更清晰。
-            </p>
-            <div className="mt-6 flex flex-wrap gap-3">
+            <div className="mt-3 space-y-0.5">
+              {/* 全部 */}
+              <button
+                onClick={() => setFilterComp(null)}
+                className={`flex w-full items-center justify-between rounded-lg px-3 py-2 text-left text-sm transition-colors ${
+                  filterComp === null
+                    ? "bg-teal-700 text-white font-bold"
+                    : "text-slate-600 hover:bg-slate-50 font-medium"
+                }`}
+              >
+                <span>全部赛事</span>
+                <span
+                  className={`rounded-md px-2 py-0.5 text-xs tabular-nums ${
+                    filterComp === null
+                      ? "bg-white/20 text-white"
+                      : "bg-slate-100 text-slate-500"
+                  }`}
+                >
+                  {competitions.reduce((sum, c) => sum + c._count.posts, 0)}
+                </span>
+              </button>
+              {/* 分割线 */}
+              <div className="my-1 border-t border-slate-100" />
+              {/* 各竞赛 */}
+              {competitions.map((c) => (
+                <button
+                  key={c.id}
+                  onClick={() => setFilterComp(c.id)}
+                  className={`flex w-full items-center justify-between rounded-lg px-3 py-2 text-left text-sm transition-colors ${
+                    filterComp === c.id
+                      ? "bg-teal-700 text-white font-bold"
+                      : "text-slate-600 hover:bg-slate-50 font-medium"
+                  }`}
+                >
+                  <span className="truncate">{c.name}</span>
+                  <span
+                    className={`rounded-md px-2 py-0.5 text-xs tabular-nums ${
+                      filterComp === c.id
+                        ? "bg-white/20 text-white"
+                        : "bg-slate-100 text-slate-500"
+                    }`}
+                  >
+                    {c._count.posts}
+                  </span>
+                </button>
+              ))}
+            </div>
+
+            {/* 发布招募入口 */}
+            <div className="mt-4 border-t border-slate-100 pt-4">
               <Link
                 href="/post/new"
-                className="inline-flex items-center gap-2 rounded-xl bg-slate-950 px-4 py-2.5 text-sm font-bold text-white shadow-sm hover:bg-teal-700"
+                className="flex items-center justify-center gap-2 rounded-xl bg-slate-950 px-4 py-2.5 text-sm font-bold text-white shadow-sm hover:bg-teal-700"
               >
                 <PlusIcon className="h-4 w-4" />
                 发布招募
               </Link>
-              <Link
-                href="/talent"
-                className="inline-flex items-center gap-2 rounded-xl border border-slate-200 bg-white px-4 py-2.5 text-sm font-bold text-slate-700 hover:border-teal-200 hover:bg-teal-50 hover:text-teal-700"
-              >
-                <UsersIcon className="h-4 w-4" />
-                浏览人才库
-              </Link>
             </div>
           </div>
-          <div className="grid grid-cols-3 border-t border-slate-100 bg-slate-50 lg:grid-cols-1 lg:border-l lg:border-t-0">
-            {[
-              { label: "招募中", value: posts.filter((p) => p.status !== "full").length },
-              { label: "赛事方向", value: categoryCount || "-" },
-              { label: "活跃申请", value: posts.reduce((sum, p) => sum + p._count.applications, 0) },
-            ].map((item) => (
-              <div key={item.label} className="border-r border-slate-100 p-5 last:border-r-0 lg:border-b lg:border-r-0 lg:last:border-b-0">
-                <div className="text-2xl font-black text-slate-950">{item.value}</div>
-                <div className="mt-1 text-xs font-semibold text-slate-500">{item.label}</div>
-              </div>
-            ))}
-          </div>
-        </div>
-      </section>
+        </aside>
 
-      <div className="mb-5 flex flex-col gap-4 rounded-2xl border border-slate-200 bg-white p-4 shadow-sm">
-        <div className="flex gap-2 overflow-x-auto pb-1">
-          {allCompetitions.map((c) => {
-            const active = (c.id === 0 && filterComp === null) || filterComp === c.id;
-            return (
-              <button
-                key={c.id}
-                onClick={() => setFilterComp(c.id === 0 ? null : c.id)}
-                className={`whitespace-nowrap rounded-full px-3 py-1.5 text-xs font-bold ${
-                  active
-                    ? "bg-teal-700 text-white shadow-sm"
-                    : "border border-slate-200 bg-white text-slate-600 hover:bg-slate-50"
-                }`}
-              >
-                {c.name}
-              </button>
-            );
-          })}
-        </div>
-        <div className="flex items-center gap-2">
-          {[
-            { key: "latest", label: "最新发布" },
-            { key: "deadline", label: "即将截止" },
-          ].map((s) => (
-            <button
-              key={s.key}
-              onClick={() => setSort(s.key)}
-              className={`rounded-lg px-3 py-1.5 text-xs font-bold ${
-                sort === s.key ? "bg-amber-100 text-amber-800" : "text-slate-500 hover:bg-slate-100"
-              }`}
-            >
-              {s.label}
-            </button>
-          ))}
-        </div>
+        {/* ========== 右侧：帖子列表 ========== */}
+        <main className="min-w-0 flex-1">
+          {/* 顶栏：标题 + 排序 */}
+          <div className="mb-5 flex flex-wrap items-center justify-between gap-3">
+            <div>
+              <h1 className="text-xl font-black text-slate-950">
+                {activeCompetition ? activeCompetition.name : "全部招募"}
+              </h1>
+              <p className="mt-0.5 text-xs font-medium text-slate-500">
+                {loading ? "加载中..." : `共 ${posts.length} 个招募`}
+              </p>
+            </div>
+            <div className="flex items-center gap-1.5 rounded-xl border border-slate-200 bg-white p-1 shadow-sm">
+              {[
+                { key: "latest", label: "最新发布" },
+                { key: "deadline", label: "即将截止" },
+              ].map((s) => (
+                <button
+                  key={s.key}
+                  onClick={() => setSort(s.key)}
+                  className={`rounded-lg px-4 py-1.5 text-xs font-bold transition-colors ${
+                    sort === s.key
+                      ? "bg-teal-700 text-white shadow-sm"
+                      : "text-slate-500 hover:bg-slate-100"
+                  }`}
+                >
+                  {s.label}
+                </button>
+              ))}
+            </div>
+          </div>
+
+          {/* 移动端：竞赛选择横向滚动 */}
+          <div className="mb-4 flex gap-2 overflow-x-auto pb-1 lg:hidden">
+            {[{ id: 0, name: "全部赛事", _count: { posts: competitions.reduce((s, c) => s + c._count.posts, 0) } }, ...competitions].map((c) => {
+              const active = (c.id === 0 && filterComp === null) || filterComp === c.id;
+              return (
+                <button
+                  key={c.id}
+                  onClick={() => setFilterComp(c.id === 0 ? null : c.id)}
+                  className={`flex items-center gap-1.5 whitespace-nowrap rounded-full px-3 py-1.5 text-xs font-bold ${
+                    active
+                      ? "bg-teal-700 text-white shadow-sm"
+                      : "border border-slate-200 bg-white text-slate-600 hover:bg-slate-50"
+                  }`}
+                >
+                  {c.name}
+                  <span className={`rounded-md px-1.5 py-0.5 text-xs tabular-nums ${
+                    active ? "bg-white/20" : "bg-slate-100 text-slate-500"
+                  }`}>
+                    {c._count.posts}
+                  </span>
+                </button>
+              );
+            })}
+          </div>
+
+          {/* 帖子列表 */}
+          {loading ? (
+            <p className="py-16 text-center text-sm font-medium text-slate-500">正在加载招募信息...</p>
+          ) : posts.length === 0 ? (
+            <div className="rounded-2xl border border-dashed border-slate-300 bg-white py-16 text-center shadow-sm">
+              <TrophyIcon className="mx-auto h-10 w-10 text-slate-300" />
+              <p className="mt-3 text-sm font-semibold text-slate-600">当前筛选下还没有招募</p>
+              <Link href="/post/new" className="mt-3 inline-flex text-sm font-bold text-teal-700 hover:underline">
+                发起第一个队伍
+              </Link>
+            </div>
+          ) : (
+            <div className="grid gap-4 sm:grid-cols-2">
+              {posts.map((post) => {
+                const skills = parseList(post.skills);
+                const daysLeft = Math.ceil((new Date(post.expiresAt).getTime() - Date.now()) / 86400000);
+                return (
+                  <Link
+                    key={post.id}
+                    href={`/post/${post.id}`}
+                    className="group flex min-h-56 flex-col rounded-2xl border border-slate-200 bg-white p-5 shadow-sm hover:-translate-y-0.5 hover:border-teal-200 hover:shadow-md"
+                  >
+                    <div className="mb-4 flex items-start justify-between gap-3">
+                      <span className="rounded-lg bg-teal-50 px-2.5 py-1 text-xs font-bold text-teal-700">
+                        {post.competition.name}
+                      </span>
+                      <span className={`rounded-full px-2.5 py-1 text-xs font-bold ${post.status === "full" ? "bg-slate-100 text-slate-500" : "bg-amber-100 text-amber-800"}`}>
+                        {post.status === "full" ? "已满员" : "招募中"}
+                      </span>
+                    </div>
+                    <h3 className="line-clamp-2 text-base font-black leading-6 text-slate-950 group-hover:text-teal-700">
+                      {post.title}
+                    </h3>
+                    <p className="mt-2 line-clamp-3 text-sm leading-6 text-slate-600">{post.description || "队长暂未填写详细说明。"}</p>
+                    <div className="mt-4 flex flex-wrap gap-1.5">
+                      {skills.slice(0, 3).map((s) => (
+                        <span key={s} className="rounded-md bg-slate-100 px-2 py-1 text-xs font-medium text-slate-600">
+                          {s}
+                        </span>
+                      ))}
+                      {skills.length > 3 && <span className="rounded-md bg-slate-100 px-2 py-1 text-xs text-slate-500">+{skills.length - 3}</span>}
+                    </div>
+                    <div className="mt-auto border-t border-slate-100 pt-4">
+                      <div className="flex items-center justify-between text-xs font-medium text-slate-500">
+                        <span className="truncate">{post.author.nickname} · {post.author.grade || "年级未填"} {post.author.major || ""}</span>
+                        <span>{formatTime(post.createdAt)}</span>
+                      </div>
+                      <div className="mt-3 flex items-center justify-between text-xs text-slate-500">
+                        <span className="inline-flex items-center gap-1"><UsersIcon className="h-4 w-4" />{post.currentSize}/{post.targetSize} 人</span>
+                        <span className="inline-flex items-center gap-1"><ClockIcon className="h-4 w-4" />{daysLeft > 0 ? `${daysLeft} 天` : "已截止"}</span>
+                        <span>{post._count.applications} 申请</span>
+                      </div>
+                    </div>
+                  </Link>
+                );
+              })}
+            </div>
+          )}
+        </main>
       </div>
 
-      {loading ? (
-        <p className="py-16 text-center text-sm font-medium text-slate-500">正在加载招募信息...</p>
-      ) : posts.length === 0 ? (
-        <div className="rounded-2xl border border-dashed border-slate-300 bg-white py-16 text-center shadow-sm">
-          <TrophyIcon className="mx-auto h-10 w-10 text-slate-300" />
-          <p className="mt-3 text-sm font-semibold text-slate-600">当前筛选下还没有招募</p>
-          <Link href="/post/new" className="mt-3 inline-flex text-sm font-bold text-teal-700 hover:underline">
-            发起第一个队伍
-          </Link>
-        </div>
-      ) : (
-        <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
-          {posts.map((post) => {
-            const skills = parseList(post.skills);
-            const daysLeft = Math.ceil((new Date(post.expiresAt).getTime() - Date.now()) / 86400000);
-            return (
-              <Link
-                key={post.id}
-                href={`/post/${post.id}`}
-                className="group flex min-h-64 flex-col rounded-2xl border border-slate-200 bg-white p-5 shadow-sm hover:-translate-y-0.5 hover:border-teal-200 hover:shadow-md"
-              >
-                <div className="mb-4 flex items-start justify-between gap-3">
-                  <span className="line-clamp-2 rounded-lg bg-teal-50 px-2.5 py-1 text-xs font-bold text-teal-700">
-                    {post.competition.name}
-                  </span>
-                  <span className={`rounded-full px-2.5 py-1 text-xs font-bold ${post.status === "full" ? "bg-slate-100 text-slate-500" : "bg-amber-100 text-amber-800"}`}>
-                    {post.status === "full" ? "已满员" : "招募中"}
-                  </span>
-                </div>
-                <h3 className="line-clamp-2 text-base font-black leading-6 text-slate-950 group-hover:text-teal-700">
-                  {post.title}
-                </h3>
-                <p className="mt-2 line-clamp-3 text-sm leading-6 text-slate-600">{post.description || "队长暂未填写详细说明。"}</p>
-                <div className="mt-4 flex flex-wrap gap-1.5">
-                  {skills.slice(0, 3).map((s) => (
-                    <span key={s} className="rounded-md bg-slate-100 px-2 py-1 text-xs font-medium text-slate-600">
-                      {s}
-                    </span>
-                  ))}
-                  {skills.length > 3 && <span className="rounded-md bg-slate-100 px-2 py-1 text-xs text-slate-500">+{skills.length - 3}</span>}
-                </div>
-                <div className="mt-auto border-t border-slate-100 pt-4">
-                  <div className="flex items-center justify-between text-xs font-medium text-slate-500">
-                    <span className="truncate">{post.author.nickname} · {post.author.grade || "年级未填"} {post.author.major || ""}</span>
-                    <span>{formatTime(post.createdAt)}</span>
-                  </div>
-                  <div className="mt-3 flex items-center justify-between text-xs text-slate-500">
-                    <span className="inline-flex items-center gap-1"><UsersIcon className="h-4 w-4" />{post.currentSize}/{post.targetSize} 人</span>
-                    <span className="inline-flex items-center gap-1"><ClockIcon className="h-4 w-4" />{daysLeft > 0 ? `${daysLeft} 天` : "已截止"}</span>
-                    <span>{post._count.applications} 申请</span>
-                  </div>
-                </div>
-              </Link>
-            );
-          })}
-        </div>
-      )}
-
+      {/* 完善画像弹窗 */}
       {showProfileTip && (
         <>
           <div className="fixed inset-0 z-50 bg-slate-950/40" onClick={() => setShowProfileTip(false)} />

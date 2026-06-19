@@ -3,7 +3,7 @@ import "./globals.css";
 import Navbar from "@/components/Navbar";
 
 export const metadata: Metadata = {
-  title: "赛搭",
+  title: "赛搭-校内学科竞赛智能组队平台",
   description: "校内学科竞赛智能组队平台",
   icons: [{ rel: "icon", url: "/example.png" }],
 };

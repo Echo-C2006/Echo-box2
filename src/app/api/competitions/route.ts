@@ -5,6 +5,9 @@ export async function GET() {
   try {
     const competitions = await prisma.competition.findMany({
       orderBy: { name: "asc" },
+      include: {
+        _count: { select: { posts: true } },
+      },
     });
     return NextResponse.json({ competitions });
   } catch (e) {

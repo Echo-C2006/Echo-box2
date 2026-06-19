@@ -44,7 +44,7 @@ export default function Navbar() {
   return (
     <header className="sticky top-0 z-50 border-b border-slate-200/80 bg-white/90 backdrop-blur-xl">
       <div className="mx-auto flex h-16 max-w-6xl items-center justify-between px-4">
-        <Link href="/square" className="flex items-center gap-3">
+        <Link href="/" className="flex items-center gap-3">
           <BrandMark className="h-9 w-9" />
           <div className="leading-tight">
             <div className="text-lg font-black tracking-wide text-slate-950">赛搭</div>

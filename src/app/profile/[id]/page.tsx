@@ -50,7 +50,7 @@ export default function UserProfilePage() {
       .then((r) => (r.ok ? r.json() : null))
       .then((data) => {
         if (data?.user) setUser(data.user);
-        else router.push("/square");
+        else router.push("/");
         setLoading(false);
       });
   }, [id, router]);

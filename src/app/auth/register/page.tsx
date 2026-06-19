@@ -30,7 +30,7 @@ export default function RegisterPage() {
       setError(data.error || "注册失败");
       return;
     }
-    router.push("/square");
+    router.push("/");
     router.refresh();
   }
 

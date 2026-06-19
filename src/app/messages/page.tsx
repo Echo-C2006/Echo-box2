@@ -280,10 +280,10 @@ function MessagesView() {
                 messages.map((msg) => {
                   const isMe = msg.senderId === currentUser?.id;
                   return (
-                    <div key={msg.id} className={`flex ${isMe ? "justify-end" : "justify-start"}`}>
+                    <div key={msg.id} className={`flex flex-col ${isMe ? "items-end" : "items-start"}`}>
+                      <p className={`text-[10px] ${isMe ? "text-teal-600" : "text-slate-400"} mb-1 px-1`}>{formatTime(msg.createdAt)}</p>
                       <div className={`max-w-[78%] rounded-2xl px-3 py-2 text-sm leading-6 shadow-sm ${isMe ? "rounded-br-md bg-teal-700 text-white" : "rounded-bl-md bg-white text-slate-900"}`}>
                         <p>{msg.content}</p>
-                        <p className={`mt-1 text-right text-[10px] ${isMe ? "text-teal-100" : "text-slate-400"}`}>{formatTime(msg.createdAt)}</p>
                       </div>
                     </div>
                   );
