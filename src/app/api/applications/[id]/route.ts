@@ -110,7 +110,7 @@ export async function PATCH(req: NextRequest, { params }: { params: Promise<{ id
           userId: application.applicantId,
           title: "申请未通过",
           content: `你对队伍「${team.name}」的申请已被队长拒绝`,
-          link: `/post/${application.postId}`,
+          link: `/team/${team.id}`,
         },
       });
 

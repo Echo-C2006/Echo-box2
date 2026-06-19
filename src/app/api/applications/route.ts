@@ -130,7 +130,7 @@ export async function POST(req: NextRequest) {
         userId: post.authorId,
         title: "新的申请",
         content: `${user.nickname} 申请加入你的队伍「${post.title}」`,
-        link: `/post/${post.id}`,
+        link: post.team ? `/team/${post.team.id}` : `/post/${post.id}`,
       },
     });
 
