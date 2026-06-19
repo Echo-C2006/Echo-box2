@@ -11,6 +11,7 @@ import {
   PlusIcon,
   UserIcon,
   UsersIcon,
+  VerifiedIcon,
   XIcon,
 } from "@/components/Icons";
 
@@ -82,9 +83,7 @@ export default function Navbar() {
             >
               <UserIcon className="h-4 w-4" />
               <span>{user.nickname}</span>
-              {!user.idVerified && (
-                <span className="rounded-md bg-amber-100 px-1.5 py-0.5 text-[10px] font-bold text-amber-700">认证</span>
-              )}
+              <VerifiedIcon className={`h-4 w-4 ${user.idVerified ? "text-teal-500" : "text-slate-300"}`} />
             </Link>
           ) : (
             <Link
@@ -127,9 +126,7 @@ export default function Navbar() {
               <Link href="/profile" className="inline-flex items-center gap-2 rounded-lg px-3 py-2 text-sm font-semibold text-slate-600 hover:bg-slate-100">
                 <UserIcon className="h-4 w-4" />
                 <span>我的主页</span>
-                {!user.idVerified && (
-                  <span className="rounded-md bg-amber-100 px-1.5 py-0.5 text-[10px] font-bold text-amber-700">认证</span>
-                )}
+                <VerifiedIcon className={`h-4 w-4 ${user.idVerified ? "text-teal-500" : "text-slate-300"}`} />
               </Link>
             ) : (
               <Link href="/auth/login" className="rounded-lg bg-slate-950 px-3 py-2 text-center text-sm font-semibold text-white">
