@@ -2,6 +2,7 @@
 
 import { useEffect, useState } from "react";
 import Link from "next/link";
+import { useRouter } from "next/navigation";
 import {
   ClockIcon,
   PlusIcon,
@@ -58,9 +59,11 @@ function formatDate(dateStr: string) {
 /* ---------- component ---------- */
 
 export default function HomePage() {
+  const router = useRouter();
   const [posts, setPosts] = useState<Post[]>([]);
   const [talents, setTalents] = useState<TalentUser[]>([]);
   const [loaded, setLoaded] = useState(false);
+  const [showProfileTip, setShowProfileTip] = useState(false);
 
   useEffect(() => {
     async function load() {
@@ -75,6 +78,12 @@ export default function HomePage() {
       setLoaded(true);
     }
     load();
+
+    fetch("/api/auth/me")
+      .then((r) => (r.ok ? r.json() : null))
+      .then((data) => {
+        if (data?.user && !data.user.profileTipSeen) setShowProfileTip(true);
+      });
   }, []);
 
   return (
@@ -314,6 +323,42 @@ export default function HomePage() {
           </div>
         )}
       </section>
+
+      {/* 完善画像弹窗 */}
+      {showProfileTip && (
+        <>
+          <div className="fixed inset-0 z-50 bg-slate-950/40" onClick={() => setShowProfileTip(false)} />
+          <div className="fixed left-1/2 top-1/2 z-50 w-[calc(100%-2rem)] max-w-sm -translate-x-1/2 -translate-y-1/2 rounded-2xl bg-white p-6 shadow-2xl">
+            <div className="mx-auto mb-4 flex h-14 w-14 items-center justify-center rounded-2xl bg-teal-50 text-teal-700">
+              <SparkIcon className="h-7 w-7" />
+            </div>
+            <h2 className="text-center text-lg font-black text-slate-950">完善你的组队画像</h2>
+            <p className="mt-2 text-center text-sm leading-6 text-slate-600">
+              添加技能标签、竞赛经历和可投入时间后，队长更容易判断你是否适合当前队伍。
+            </p>
+            <div className="mt-5 flex gap-3">
+              <button
+                onClick={() => {
+                  fetch("/api/auth/profile-tip-seen", { method: "PATCH" });
+                  router.push("/profile");
+                }}
+                className="flex-1 rounded-xl bg-slate-950 px-4 py-2.5 text-sm font-bold text-white hover:bg-teal-700"
+              >
+                去完善
+              </button>
+              <button
+                onClick={() => {
+                  fetch("/api/auth/profile-tip-seen", { method: "PATCH" });
+                  setShowProfileTip(false);
+                }}
+                className="flex-1 rounded-xl border border-slate-200 px-4 py-2.5 text-sm font-bold text-slate-700 hover:bg-slate-50"
+              >
+                稍后再说
+              </button>
+            </div>
+          </div>
+        </>
+      )}
     </div>
   );
 }

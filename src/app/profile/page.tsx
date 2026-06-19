@@ -68,7 +68,7 @@ export default function ProfilePage() {
         if (data?.user) {
           setUser(data.user);
           setForm(data.user);
-        } else router.push("/auth/login");
+        } else router.push("/auth/login?redirect=/profile");
         setLoading(false);
       });
   }, [router]);

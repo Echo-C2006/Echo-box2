@@ -77,7 +77,7 @@ function MessagesView() {
       .then((r) => (r.ok ? r.json() : null))
       .then((data) => {
         if (data?.user) setCurrentUser(data.user);
-        else router.push("/auth/login");
+        else router.push("/auth/login?redirect=/messages");
       });
   }, [router]);
 
