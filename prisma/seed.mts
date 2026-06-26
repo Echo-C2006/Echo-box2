@@ -351,8 +351,6 @@ async function main() {
   await prisma.post.deleteMany();
   await prisma.competition.deleteMany();
   await prisma.user.deleteMany();
-  // 重置 SQLite 自增序列
-  await prisma.$executeRawUnsafe("DELETE FROM sqlite_sequence");
   console.log("✅ 旧数据已清空");
 
   // ---------- 竞赛 ----------
