@@ -41,13 +41,18 @@ git push -u origin main
 ### 4. 添加环境变量
 
 1. 进入 **Settings → Environment Variables**
-2. 添加以下变量：
+2. 添加以下变量（仅 Production 环境）：
 
-| Name | Value | 说明 |
-|------|-------|------|
-| `JWT_SECRET` | 任意随机字符串 | JWT 签名密钥 |
+| Name | Value 示例 | 说明 |
+|------|-----------|------|
+| `JWT_SECRET` | 任意随机字符串 | JWT 签名密钥，可用 `openssl rand -hex 32` 生成 |
+| `DATABASE_URL` | Vercel Storage 自动创建后可获取 | PostgreSQL 连接串（创建数据库后会自动注入） |
+| `AI_API_KEY` | `sk-xxxxx` | AI 服务商 API 密钥 |
+| `AI_API_URL` | `https://api.deepseek.com` | （可选）自定义 API 地址，默认使用 OpenAI |
+| `AI_MODEL` | `deepseek-v4-flash` | （可选）模型名称，默认 `gpt-4o-mini` |
+| `AI_TIMEOUT_MS` | `5000` | （可选）请求超时时间（毫秒），默认 `30000` |
 
-> 可用 `openssl rand -hex 32` 或在线工具生成随机字符串。
+> `DATABASE_URL` 在 Vercel 上创建 Postgres 数据库后会自动注入到环境变量中，无需手动复制粘贴。
 
 ### 5. 重新部署
 
@@ -117,3 +122,6 @@ git push
 |------|------|------|
 | 构建报错 `DATABASE_URL` not found | 未创建数据库 | Vercel Storage 创建 Postgres 数据库 |
 | 页面能访问但数据为空 | 未运行种子数据 | 按步骤 6 填充种子数据 |
+| AI 对话返回 500 或不可用 | 未配置 AI 环境变量 | 在 Vercel Settings → Environment Variables 添加 `AI_API_KEY` 等变量后 Redeploy |
+| 新增环境变量后未生效 | 添加变量后未重新部署 | 在 Deployments 页面点 **Redeploy** 触发重新构建 |
+| `.env` 修改后部署未更新 | `.env` 被 `.gitignore` 忽略，不会随代码推送 | 需手动在 Vercel 控制台同步变量，参考步骤 4 |
