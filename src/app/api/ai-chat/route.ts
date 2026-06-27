@@ -40,7 +40,7 @@ function parseJsonList(value: string | null) {
 }
 
 async function buildSystemContext(userId: number) {
-  const [profile, teams, myApplications, receivedApplications, recentPosts, competitions] = await Promise.all([
+  const [profile, teams, myApplications, receivedApplications, posts, users, competitions] = await Promise.all([
     prisma.user.findUnique({
       where: { id: userId },
       select: {
@@ -111,12 +111,26 @@ async function buildSystemContext(userId: number) {
     }),
     prisma.post.findMany({
       where: { status: "recruiting" },
-      take: 10,
       orderBy: { createdAt: "desc" },
       include: {
         author: { select: { id: true, nickname: true, grade: true, major: true } },
         competition: { select: { id: true, name: true, category: true } },
         _count: { select: { applications: true } },
+      },
+    }),
+    prisma.user.findMany({
+      where: { id: { not: userId } },
+      orderBy: { createdAt: "desc" },
+      select: {
+        id: true,
+        nickname: true,
+        grade: true,
+        major: true,
+        bio: true,
+        skills: true,
+        interests: true,
+        experience: true,
+        timeCommitment: true,
       },
     }),
     prisma.competition.findMany({
@@ -170,7 +184,7 @@ async function buildSystemContext(userId: number) {
       },
       post: application.post,
     })),
-    recentRecruitingPosts: recentPosts.map((post) => ({
+    recruitingPosts: posts.map((post) => ({
       id: post.id,
       title: post.title,
       description: post.description,
@@ -181,6 +195,11 @@ async function buildSystemContext(userId: number) {
       author: post.author,
       competition: post.competition,
       applicationCount: post._count.applications,
+    })),
+    talentPool: users.map((user) => ({
+      ...user,
+      skills: parseJsonList(user.skills),
+      interests: parseJsonList(user.interests),
     })),
     competitions,
   };
@@ -205,8 +224,9 @@ function buildMessages(messages: ChatMessage[], content: string, nickname: strin
       content: [
         "你是 Echo-box 的 AI 助手，服务于高校竞赛组队平台。",
         `当前用户昵称：${nickname}。`,
-        "你的回答必须优先围绕下面提供的 Echo-box 平台真实数据，包括当前用户资料、队伍、申请、招募帖和竞赛信息。",
-        "不要编造平台里不存在的队伍、成员、申请、比赛或截止日期；如果数据里没有，就明确说“当前系统数据里没有看到”。",
+        "你的回答必须优先围绕下面提供的 Echo-box 平台真实数据，包括当前用户资料、队伍、申请、招募帖、竞赛信息和人才库（talentPool，即所有注册用户）。",
+        "当用户要求从人才库找人、推荐队友、筛选合适人选时，你必须从 talentPool 数据中查找匹配的用户，不要回答“没有提供这个数据”。",
+        "不要编造平台里不存在的队伍、成员、申请、比赛、用户或截止日期；如果数据里没有，就明确说“当前系统数据里没有看到”。",
         "当用户问“我”“我的队伍”“我的申请”“推荐谁/哪个队伍/哪个帖子”时，必须结合系统数据回答。",
         "只有在用户明确要求通用建议，或系统数据不足时，才补充通用建议，并说明这是基于经验的建议。",
         "回复必须使用中文，语气专业、直接、可执行。",
