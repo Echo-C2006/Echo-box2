@@ -1,5 +1,5 @@
 import OpenAI from "openai";
-import type { ChatCompletionMessageParam } from "openai/resources/chat/completions";
+import type { ChatCompletionMessageParam, ChatCompletionCreateParamsStreaming } from "openai/resources/chat/completions";
 import { NextRequest, NextResponse } from "next/server";
 import { getCurrentUser } from "@/lib/auth";
 import { prisma } from "@/lib/prisma";
@@ -9,10 +9,7 @@ type ChatMessage = {
   content?: string;
 };
 
-const MAX_CONTENT_LENGTH = 1000;
 const MAX_HISTORY_MESSAGES = 10;
-const MAX_CONTEXT_CHARS = 6000;
-const MIN_AI_TIMEOUT_MS = 30000;
 
 function getOpenAIClient() {
   const apiKey = process.env.AI_API_KEY || process.env.OPENAI_API_KEY;
@@ -21,12 +18,105 @@ function getOpenAIClient() {
   return new OpenAI({
     apiKey,
     baseURL: process.env.AI_BASE_URL || process.env.AI_API_URL,
-    timeout: Math.max(Number(process.env.AI_TIMEOUT_MS || MIN_AI_TIMEOUT_MS), MIN_AI_TIMEOUT_MS),
   });
 }
 
-function safeJson(value: unknown) {
-  return JSON.stringify(value, null, 2).slice(0, MAX_CONTEXT_CHARS);
+type SystemContext = Awaited<ReturnType<typeof buildSystemContext>>;
+
+function fmtDate(value: Date | string | null | undefined) {
+  if (!value) return "未设置";
+  const date = value instanceof Date ? value : new Date(value);
+  return Number.isNaN(date.getTime()) ? "未设置" : date.toISOString().slice(0, 10);
+}
+
+function fmtArr(value: unknown) {
+  return Array.isArray(value) && value.length ? value.join("、") : "无";
+}
+
+function formatContextText(context: SystemContext) {
+  const lines: string[] = [];
+
+  const me = context.currentUser;
+  lines.push("【当前用户资料】");
+  if (me) {
+    lines.push(
+      `昵称：${me.nickname}；年级：${me.grade || "未填写"}；专业：${me.major || "未填写"}；实名认证：${me.idVerified ? "已认证" : "未认证"}`,
+      `简介：${me.bio || "无"}`,
+      `技能：${fmtArr(me.skills)}；兴趣：${fmtArr(me.interests)}`,
+      `经历：${me.experience || "无"}；时间投入：${me.timeCommitment || "未填写"}`
+    );
+  } else {
+    lines.push("无");
+  }
+
+  lines.push("", "【我的队伍】");
+  if (context.myTeams.length) {
+    context.myTeams.forEach((team, i) => {
+      lines.push(
+        `${i + 1}. 队伍「${team.name}」(ID:${team.id})，状态：${team.status}，进度：${team.progress || "无"}`,
+        `   关联帖子：${team.post.title}（竞赛：${team.post.competition?.name || "无"}），招募 ${team.post.currentSize}/${team.post.targetSize}`,
+        `   成员：${team.members.map((m) => `${m.user.nickname}(${m.role}，${m.user.major || "未知专业"}，技能:${fmtArr(m.user.skills)})`).join("；") || "无"}`
+      );
+    });
+  } else {
+    lines.push("无");
+  }
+
+  lines.push("", "【我发出的申请】");
+  if (context.myApplications.length) {
+    context.myApplications.forEach((app, i) => {
+      lines.push(`${i + 1}. 申请帖子「${app.post?.title || "未知"}」，状态：${app.status}，理由：${app.reason || "无"}`);
+    });
+  } else {
+    lines.push("无");
+  }
+
+  lines.push("", "【收到的入队申请】");
+  if (context.applicationsToMyTeams.length) {
+    context.applicationsToMyTeams.forEach((app, i) => {
+      lines.push(
+        `${i + 1}. 申请人 ${app.applicant.nickname}（${app.applicant.grade || "未知年级"} ${app.applicant.major || "未知专业"}，技能:${fmtArr(app.applicant.skills)}）申请「${app.post?.title || "未知"}」，状态：${app.status}，理由：${app.reason || "无"}`
+      );
+    });
+  } else {
+    lines.push("无");
+  }
+
+  lines.push("", "【招募中的帖子】");
+  if (context.recruitingPosts.length) {
+    context.recruitingPosts.forEach((post, i) => {
+      lines.push(
+        `${i + 1}. 「${post.title}」(ID:${post.id})，发布者：${post.author?.nickname || "未知"}，竞赛：${post.competition?.name || "无"}`,
+        `   需求技能：${fmtArr(post.skills)}，招募 ${post.currentSize}/${post.targetSize}，已有申请 ${post.applicationCount} 人，截止：${fmtDate(post.expiresAt)}`,
+        `   描述：${post.description || "无"}`
+      );
+    });
+  } else {
+    lines.push("无");
+  }
+
+  lines.push("", `【人才库（共 ${context.talentPool.length} 位注册用户，已全部列出）】`);
+  if (context.talentPool.length) {
+    context.talentPool.forEach((u, i) => {
+      lines.push(
+        `${i + 1}. ${u.nickname}(ID:${u.id})｜${u.grade || "未知年级"}｜${u.major || "未知专业"}｜技能:${fmtArr(u.skills)}｜兴趣:${fmtArr(u.interests)}｜时间投入:${u.timeCommitment || "未填写"}`,
+        `   简介:${u.bio || "无"}；经历:${u.experience || "无"}`
+      );
+    });
+  } else {
+    lines.push("无");
+  }
+
+  lines.push("", "【竞赛信息】");
+  if (context.competitions.length) {
+    context.competitions.forEach((c, i) => {
+      lines.push(`${i + 1}. ${c.name}（${c.category}），截止：${fmtDate(c.deadline)}`);
+    });
+  } else {
+    lines.push("无");
+  }
+
+  return lines.join("\n");
 }
 
 function parseJsonList(value: string | null) {
@@ -205,13 +295,13 @@ async function buildSystemContext(userId: number) {
   };
 }
 
-function buildMessages(messages: ChatMessage[], content: string, nickname: string, systemContext: unknown): ChatCompletionMessageParam[] {
+function buildMessages(messages: ChatMessage[], content: string, nickname: string, systemContext: SystemContext): ChatCompletionMessageParam[] {
   const history: ChatCompletionMessageParam[] = messages
     .slice(-MAX_HISTORY_MESSAGES)
     .filter((msg) => typeof msg.content === "string" && msg.content.trim())
     .map((msg) => ({
       role: msg.role === "assistant" ? "assistant" : "user",
-      content: msg.content!.trim().slice(0, MAX_CONTENT_LENGTH),
+      content: msg.content!.trim(),
     }));
 
   if (history.length === 0 || history.at(-1)?.content !== content) {
@@ -233,7 +323,7 @@ function buildMessages(messages: ChatMessage[], content: string, nickname: strin
         "回答尽量短，先给结论，再列 2-4 条理由或下一步。",
         "",
         "Echo-box 当前系统数据：",
-        safeJson(systemContext),
+        formatContextText(systemContext),
       ].join("\n"),
     },
     ...history,
@@ -255,10 +345,6 @@ export async function POST(req: NextRequest) {
       return NextResponse.json({ error: "消息不能为空" }, { status: 400 });
     }
 
-    if (content.length > MAX_CONTENT_LENGTH) {
-      return NextResponse.json({ error: "消息过长" }, { status: 400 });
-    }
-
     const client = getOpenAIClient();
     if (!client) {
       return NextResponse.json({ error: "AI_API_KEY 未配置" }, { status: 500 });
@@ -266,13 +352,17 @@ export async function POST(req: NextRequest) {
 
     const systemContext = await buildSystemContext(user.id);
 
-    const stream = await client.chat.completions.create({
+    const params: ChatCompletionCreateParamsStreaming = {
       model: process.env.AI_MODEL || "gpt-4o-mini",
       messages: buildMessages(messages, content, user.nickname, systemContext),
       temperature: 0.2,
-      max_tokens: 800,
+      max_tokens: 8192,
       stream: true,
-    });
+    };
+    // 关闭 deepseek 思考模式，正文直接走 content
+    Object.assign(params, { thinking: { type: "disabled" } });
+
+    const stream = await client.chat.completions.create(params);
 
     const encoder = new TextEncoder();
     const readable = new ReadableStream({
