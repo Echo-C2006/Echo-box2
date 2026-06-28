@@ -2,17 +2,32 @@
 
 ## 📦 技术栈
 
-- **框架:** Next.js 16 (App Router)
-- **数据库:** PostgreSQL (Vercel Postgres / Neon)
-- **ORM:** Prisma 6
+- **框架:** Next.js 16 (App Router + SSR)
+- **数据库:** Netlify Postgres（Netlify 内置数据库）
+- **ORM:** Prisma 6（使用 Prisma Migrate 管理迁移）
 - **认证:** JWT (jose) + Cookie
-- **部署:** Vercel
+- **AI:** DeepSeek
+- **部署:** Netlify
 
 ---
 
-## 🚀 部署步骤
+## 🚀 部署概览
 
-### 1. 推送代码到 GitHub
+部署流程共 5 步：
+
+| 步骤 | 说明 | 对应文档 |
+|------|------|---------|
+| 1. 推送代码 | 代码推送到 GitHub | 见下方 |
+| 2. 创建站点 | Netlify 导入仓库、配置项目名/构建命令/环境变量 | 详细操作见 [`Next项目部署到Netlify.md`](Next项目部署到Netlify.md) 第一~七章 |
+| 3. 创建数据库 | 在项目内创建 Postgres 数据库，配置 DATABASE_URL | 详细操作见 [`Next项目部署到Netlify.md`](Next项目部署到Netlify.md) 第八~十二章 |
+| 4. 填充种子数据 | 连接远程数据库执行 seed | 见下方 |
+| 5. 验证部署 | 登录并检查功能 | 见下方 |
+
+> 详细的**图文操作步骤**（每一步都有截图指引），请参阅 [`Next项目部署到Netlify.md`](Next项目部署到Netlify.md)。
+
+---
+
+## 一、推送代码到 GitHub
 
 ```bash
 git init
@@ -23,106 +38,84 @@ git branch -M main
 git push -u origin main
 ```
 
-### 2. 在 Vercel 上部署
+## 二、创建站点（关键配置项）
 
-1. 打开 [vercel.com](https://vercel.com)，用 GitHub 登录
-2. 点击 **Add New → Project**
-3. 导入刚才推送的 GitHub 仓库
-4. 点击 **Deploy**，等待构建完成
+在 Netlify **Configure project and deploy** 页面设置：
 
-### 3. 创建数据库
+| 配置项 | 值 |
+|--------|-----|
+| **Project name** | `echo-box2` |
+| **Build command** | `npm run netlify-build` |
+| **Environment variables** | 添加 `JWT_SECRET`、`AI_API_KEY`、`AI_API_URL`、`AI_MODEL`（暂不加 `DATABASE_URL`） |
 
-1. 部署完成后，进入项目，点击顶部 **Storage** 标签
-2. 点击 **Create Database → Postgres**
-3. 选择 **Hobby（免费）** 计划
-4. Environments 勾选 **Production**，**不要勾选** "Create database branch for deployment"
-5. 点击 **Create**，创建后 Vercel 会自动重新部署
+> 点击 **Deploy <仓库名>** 后首次构建会因缺少 `DATABASE_URL` 而失败。创建数据库并配置环境变量后重新部署即可。
 
-### 4. 添加环境变量
+详细图文指引 → [`Next项目部署到Netlify.md`](Next项目部署到Netlify.md)（第一~七章）
 
-1. 进入 **Settings → Environment Variables**
-2. 添加以下变量（仅 Production 环境）：
+## 三、创建数据库
 
-| Name | Value 示例 | 说明 |
-|------|-----------|------|
-| `JWT_SECRET` | 任意随机字符串 | JWT 签名密钥，可用 `openssl rand -hex 32` 生成 |
-| `DATABASE_URL` | Vercel Storage 自动创建后可获取 | PostgreSQL 连接串（创建数据库后会自动注入） |
-| `AI_API_KEY` | `sk-xxxxx` | AI 服务商 API 密钥 |
-| `AI_API_URL` | `https://api.deepseek.com` | （可选）自定义 API 地址，默认使用 OpenAI |
-| `AI_MODEL` | `deepseek-v4-flash` | （可选）模型名称，默认 `gpt-4o-mini` |
-| `AI_TIMEOUT_MS` | `5000` | （可选）请求超时时间（毫秒），默认 `30000` |
+1. 在 **Project overview** 左侧导航点击 **Database**，点击 **Or create a database manually instead**
+2. 创建完成后点击 `production` 分支，在 **Connect** 区域复制 **Read and write** 连接字符串
+3. 点击 **Database** 返回 → **Project configuration → Environment variables** → **Add a variable → Add a single variable**
+4. Key 填写 `DATABASE_URL`，勾选 **Contains secret values**，粘贴到 **Production** 输入框，点击 **Create variable**
 
-> `DATABASE_URL` 在 Vercel 上创建 Postgres 数据库后会自动注入到环境变量中，无需手动复制粘贴。
+详细图文指引 → [`Next项目部署到Netlify.md`](Next项目部署到Netlify.md)（第八~十二章）
 
-### 5. 重新部署
+## 四、填充种子数据
 
-添加环境变量后，在 **Deployments** 页面找到最新的部署，点击 **Redeploy** 触发重新构建。
+在本地项目目录执行 `npm run db:seed`，脚本会清空旧数据并依次创建竞赛、用户、帖子、队伍、申请、私信、通知等示例数据。所有示例用户的初始密码均为 `123456`。
 
-### 6. 填充种子数据（仅首次部署需要）
+> 执行 seed 前，先将上一步复制的 `DATABASE_URL` 连接字符串粘贴到本地 `.env` 文件中。
 
-在本地终端执行：
+详细图文指引 → [`Next项目部署到Netlify.md`](Next项目部署到Netlify.md)（第十四章）
+
+## 五、验证部署
+
+访问 `https://<project-name>.netlify.app`，用 `user1@test.com` / `123456` 登录。
+
+---
+
+## 🗄️ 数据库迁移管理
+
+项目使用 **Prisma Migrate** 管理数据库结构变更。
+
+### 本地开发时修改 Schema
 
 ```bash
-# 安装 Vercel CLI（如果没装）
-npm i -g vercel
+# 修改 prisma/schema.prisma 后，创建新的迁移
+npm run db:migrate
 
-# 登录 Vercel
-vercel login
-
-# 在项目目录关联 Vercel 项目
-npx vercel link
-
-# 拉取生产环境变量
-npx vercel env pull .env --environment production
-
-# 生成 Prisma Client 并填充种子数据
-npx prisma generate
-npx tsx prisma/seed.mts
+# 将迁移文件提交到 Git
+git add prisma/migrations/
+git commit -m "feat: add xxx migration"
 ```
 
-> ⚠️ 如果 `.env` 中 `DATABASE_URL` 为空，从 **Vercel Storage → 数据库页面** 手动复制连接串后运行：
-> ```bash
-> set DATABASE_URL="<连接串>" && npx prisma generate && npx tsx prisma/seed.mts
-> ```
+### 构建时自动迁移
 
-### 7. 验证
+`netlify-build` 会自动执行：
 
-打开 Vercel 分配的域名（格式：`https://<项目名>.vercel.app`），用测试账号登录即可。
-
----
-
-## 🧪 测试账号
-
-种子数据包含 22 个测试用户，所有用户密码统一为 `123456`：
-
-| 邮箱 | 角色 |
-|------|------|
-| `user1@test.com` | 张明（队长，有招募帖） |
-| `user2@test.com` ~ `user12@test.com` | 其他测试用户（部分有队伍/申请记录） |
-| `user13@test.com` ~ `user22@test.com` | 人才库用户（无队伍关联，适合演示 AI 从人才库找人） |
-
-> 测试环境和本地无关联，种子数据只在远程数据库填充一次，后续不需要重复执行。
-
----
-
-## 🔄 后续更新
-
-代码修改后推送到 GitHub，Vercel 会自动触发重新构建和部署：
-
-```bash
-git add .
-git commit -m "some changes"
-git push
+```
+prisma generate       # 生成 Prisma Client
+prisma migrate deploy # 仅运行未执行的迁移
+next build            # 构建 Next.js
 ```
 
+### 原则
+
+- 迁移文件必须提交到 Git（`prisma/migrations/`）
+- 不要手动修改已提交的迁移文件
+- 生产环境不能使用 `prisma migrate dev`
+
 ---
 
-## ⚠️ 常见问题
+## ⚠️ 环境变量总览
 
-| 问题 | 原因 | 解决 |
-|------|------|------|
-| 构建报错 `DATABASE_URL` not found | 未创建数据库 | Vercel Storage 创建 Postgres 数据库 |
-| 页面能访问但数据为空 | 未运行种子数据 | 按步骤 6 填充种子数据 |
-| AI 对话返回 500 或不可用 | 未配置 AI 环境变量 | 在 Vercel Settings → Environment Variables 添加 `AI_API_KEY` 等变量后 Redeploy |
-| 新增环境变量后未生效 | 添加变量后未重新部署 | 在 Deployments 页面点 **Redeploy** 触发重新构建 |
-| `.env` 修改后部署未更新 | `.env` 被 `.gitignore` 忽略，不会随代码推送 | 需手动在 Vercel 控制台同步变量，参考步骤 4 |
+| Name | 设置时机 | 说明 |
+|------|---------|------|
+| `DATABASE_URL` | 创建数据库后手动添加 | PostgreSQL 连接串 |
+| `JWT_SECRET` | 创建站点时添加 | JWT 签名密钥 |
+| `AI_API_KEY` | 创建站点时添加 | AI 服务商 API 密钥 |
+| `AI_API_URL` | 创建站点时添加 | 自定义 API 地址 |
+| `AI_MODEL` | 创建站点时添加 | 模型名称 |
+
+> `.env.example` 已提交到仓库，可直接复制字段名。
